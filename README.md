@@ -16,7 +16,7 @@ This guide covers the steps to:
 
 ## Architecture
 
-![Architecture diagram](architecture.excalidraw.png)
+![Architecture diagram](k8s-kind-voting-app.png)
 
 * A front-end web app in [Python](/vote) which lets you vote between two options
 * A [Redis](https://hub.docker.com/_/redis/) which collects new votes

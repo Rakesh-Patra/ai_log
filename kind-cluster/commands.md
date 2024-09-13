@@ -181,3 +181,21 @@ kubectl port-forward svc/kind-prometheus-grafana -n monitoring 31000:80 --addres
 
 ---
 
+## 12. Prometheus Queries
+
+```bash
+sum (rate (container_cpu_usage_seconds_total{namespace="default"}[1m])) / sum (machine_cpu_cores) * 100
+
+sum (container_memory_usage_bytes{namespace="default"}) by (pod)
+
+
+sum(rate(container_network_receive_bytes_total{namespace="default"}[5m])) by (pod)
+sum(rate(container_network_transmit_bytes_total{namespace="default"}[5m])) by (pod)
+
+```
+
+
+---
+
+
+

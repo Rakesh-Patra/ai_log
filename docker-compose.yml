@@ -4,20 +4,20 @@
 
 services:
   vote:
-    build: 
+    build:
       context: ./vote
       target: dev
     depends_on:
       redis:
         condition: service_healthy
-    healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost" ]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 10s
     volumes:
-     - ./vote:/usr/local/app
+      - ./vote:/usr/local/app
     ports:
       - "5000:80"
     networks:
@@ -30,7 +30,7 @@ services:
     entrypoint: nodemon --inspect=0.0.0.0 server.js
     depends_on:
       db:
-        condition: service_healthy 
+        condition: service_healthy
     volumes:
       - ./result:/usr/local/app
     ports:
@@ -45,9 +45,9 @@ services:
       context: ./worker
     depends_on:
       redis:
-        condition: service_healthy 
+        condition: service_healthy
       db:
-        condition: service_healthy 
+        condition: service_healthy
     networks:
       - back-tier
 
@@ -80,16 +80,85 @@ services:
   # docker compose --profile seed up -d
   seed:
     build: ./seed-data
-    profiles: ["seed"]
+    profiles: [ "seed" ]
     depends_on:
       vote:
-        condition: service_healthy 
+        condition: service_healthy
     networks:
       - front-tier
     restart: "no"
 
+  agent:
+    build:
+      context: ./agent
+    env_file:
+      - ./agent/.env
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - TEMPORAL_HOST=temporal
+      - TEMPORAL_PORT=7233
+      # Override host/WSL paths from .env; file must use host.docker.internal for Kind API from inside the container.
+      - KUBECONFIG=/app/kubeconfig_agent
+      - KUBECONFIG_PATH=/app/kubeconfig_agent
+      - MODEL_NAME=gemini-2.5-flash-lite
+    volumes:
+      - ./agent:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - temporal
+    networks:
+      - front-tier
+      - back-tier
+
+  agent-worker:
+    build:
+      context: ./agent
+    env_file:
+      - ./agent/.env
+    command: [ "python", "-m", "app.temporal.worker" ]
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - TEMPORAL_HOST=temporal
+      - TEMPORAL_PORT=7233
+      - KUBECONFIG=/app/kubeconfig_agent
+      - KUBECONFIG_PATH=/app/kubeconfig_agent
+      - MODEL_NAME=gemini-2.5-flash-lite
+    volumes:
+      - ./agent:/app
+    depends_on:
+      - temporal
+    networks:
+      - back-tier
+
+  temporal:
+    image: temporalio/auto-setup:1.22.4
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PWD=postgres
+      - POSTGRES_SEEDS=db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - back-tier
+
+  temporal-ui:
+    image: temporalio/ui:2.21.3
+    ports:
+      - "8233:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    depends_on:
+      - temporal
+    networks:
+      - back-tier
+
 volumes:
   db-data:
+
 
 networks:
   front-tier:

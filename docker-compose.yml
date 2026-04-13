@@ -1,6 +1,8 @@
 # version is now using "compose spec"
 # v2 and v3 are now combined!
 # docker-compose v1.27+ required
+#
+# Database credentials: set POSTGRES_* (and POSTGRES_PWD for Temporal) in agent/.env only.
 
 services:
   vote:
@@ -31,11 +33,24 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - ./agent/.env
+    environment:
+      # agent/.env sets PORT=8000 for the API; result must listen on 80 (matches published port 5001:80).
+      PORT: "80"
+      POSTGRES_HOST: db
     volumes:
       - ./result:/usr/local/app
     ports:
       - "5001:80"
       - "127.0.0.1:9229:9229"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
     networks:
       - front-tier
       - back-tier
@@ -48,6 +63,10 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+    env_file:
+      - ./agent/.env
+    environment:
+      POSTGRES_HOST: db
     networks:
       - back-tier
 
@@ -63,15 +82,17 @@ services:
 
   db:
     image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
+    env_file:
+      - ./agent/.env
     volumes:
       - "db-data:/var/lib/postgresql/data"
       - "./healthchecks:/healthchecks"
     healthcheck:
       test: /healthchecks/postgres.sh
-      interval: "5s"
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
     networks:
       - back-tier
 
@@ -94,19 +115,21 @@ services:
     env_file:
       - ./agent/.env
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # GOOGLE_API_KEY comes from env_file (agent/.env). Do not pass
+      # ${GOOGLE_API_KEY} from the host here — an unset host var overrides .env with empty.
       - TEMPORAL_HOST=temporal
       - TEMPORAL_PORT=7233
       # Override host/WSL paths from .env; file must use host.docker.internal for Kind API from inside the container.
-      - KUBECONFIG=/app/kubeconfig_agent
-      - KUBECONFIG_PATH=/app/kubeconfig_agent
+      - KUBECONFIG=/app/kubeconfig_agent/config
+      - KUBECONFIG_PATH=/app/kubeconfig_agent/config
       - MODEL_NAME=gemini-2.5-flash-lite
     volumes:
       - ./agent:/app
     ports:
       - "8000:8000"
     depends_on:
-      - temporal
+      temporal:
+        condition: service_healthy
     networks:
       - front-tier
       - back-tier
@@ -118,30 +141,45 @@ services:
       - ./agent/.env
     command: [ "python", "-m", "app.temporal.worker" ]
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # GOOGLE_API_KEY comes from env_file (agent/.env). Do not pass
+      # ${GOOGLE_API_KEY} from the host here — an unset host var overrides .env with empty.
       - TEMPORAL_HOST=temporal
       - TEMPORAL_PORT=7233
-      - KUBECONFIG=/app/kubeconfig_agent
-      - KUBECONFIG_PATH=/app/kubeconfig_agent
+      - KUBECONFIG=/app/kubeconfig_agent/config
+      - KUBECONFIG_PATH=/app/kubeconfig_agent/config
       - MODEL_NAME=gemini-2.5-flash-lite
     volumes:
       - ./agent:/app
     depends_on:
-      - temporal
+      temporal:
+        condition: service_healthy
     networks:
       - back-tier
 
+  # Temporal's image authenticates with POSTGRES_USER + POSTGRES_PWD.
+  # The Postgres container uses POSTGRES_USER + POSTGRES_PASSWORD on *first* init only.
+  # Keep POSTGRES_PWD === POSTGRES_PASSWORD in agent/.env. If you changed the password after
+  # the DB volume was created, either revert .env to the old password or reset the volume:
+  #   docker compose down -v   (deletes db-data; dev-only)
   temporal:
     image: temporalio/auto-setup:1.22.4
+    env_file:
+      - ./agent/.env
     environment:
       - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=postgres
       - POSTGRES_SEEDS=db
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+    # temporal-server binds to the container IP, not 127.0.0.1 — use service DNS name.
+    healthcheck:
+      test: ["CMD-SHELL", "tctl --address temporal:7233 cluster health >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - back-tier
 
@@ -152,7 +190,8 @@ services:
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
     depends_on:
-      - temporal
+      temporal:
+        condition: service_healthy
     networks:
       - back-tier
 

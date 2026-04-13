@@ -49,9 +49,8 @@ services:
 
   db:
     image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
+    env_file:
+      - ./agent/.env
     volumes:
       - "db-data:/var/lib/postgresql/data"
       - "./healthchecks:/healthchecks"

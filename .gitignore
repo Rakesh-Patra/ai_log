@@ -1,6 +1,14 @@
+# Secrets — never commit real credentials
+.env
+.env.*
+!.env.example
+
 *.pyc
 project.lock.json
 bin/
 obj/
 .vs/
 node_modules/
+
+# Local-only logs (do not commit)
+agent_temp_logs.txt

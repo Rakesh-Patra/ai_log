@@ -16,7 +16,7 @@ namespace Worker
         {
             try
             {
-                var pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                var pgsql = OpenDbConnection(BuildPgConnectionString());
                 var redisConn = OpenRedisConnection("redis");
                 var redis = redisConn.GetDatabase();
 
@@ -46,7 +46,7 @@ namespace Worker
                         if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
                         {
                             Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                            pgsql = OpenDbConnection(BuildPgConnectionString());
                         }
                         else
                         { // Normal +1 vote requested
@@ -64,6 +64,27 @@ namespace Worker
                 Console.Error.WriteLine(ex.ToString());
                 return 1;
             }
+        }
+
+        private static string BuildPgConnectionString()
+        {
+            var host = Environment.GetEnvironmentVariable("POSTGRES_HOST") ?? "db";
+            var user = Environment.GetEnvironmentVariable("POSTGRES_USER") ?? "postgres";
+            var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
+            if (string.IsNullOrEmpty(password))
+            {
+                throw new InvalidOperationException(
+                    "POSTGRES_PASSWORD must be set (for example via docker-compose .env or Kubernetes envFrom secret).");
+            }
+            var database = Environment.GetEnvironmentVariable("POSTGRES_DB") ?? "postgres";
+            var csb = new NpgsqlConnectionStringBuilder
+            {
+                Host = host,
+                Username = user,
+                Password = password,
+                Database = database
+            };
+            return csb.ConnectionString;
         }
 
         private static NpgsqlConnection OpenDbConnection(string connectionString)

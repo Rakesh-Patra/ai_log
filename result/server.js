@@ -1,5 +1,6 @@
 var express = require('express'),
     async = require('async'),
+    path = require('path'),
     { Pool } = require('pg'),
     cookieParser = require('cookie-parser'),
     app = express(),
@@ -7,6 +8,17 @@ var express = require('express'),
     io = require('socket.io')(server);
 
 var port = process.env.PORT || 4000;
+
+function postgresConnectionString() {
+  var user = process.env.POSTGRES_USER || 'postgres';
+  var password = process.env.POSTGRES_PASSWORD;
+  if (!password) {
+    throw new Error('POSTGRES_PASSWORD environment variable is required');
+  }
+  var host = process.env.POSTGRES_HOST || 'db';
+  var db = process.env.POSTGRES_DB || 'postgres';
+  return 'postgres://' + encodeURIComponent(user) + ':' + encodeURIComponent(password) + '@' + host + '/' + db;
+}
 
 io.on('connection', function (socket) {
 
@@ -18,7 +30,7 @@ io.on('connection', function (socket) {
 });
 
 var pool = new Pool({
-  connectionString: 'postgres://postgres:postgres@db/postgres'
+  connectionString: postgresConnectionString()
 });
 
 async.retry(

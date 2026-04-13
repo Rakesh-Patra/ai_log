@@ -23,8 +23,17 @@ CMD ["python", "app.py"]
 # Define the final stage that will bundle the application for production
 FROM base AS final
 
+# Create a non-root user and group
+RUN groupadd -r app && useradd -r -g app app
+
 # Copy our code from the current folder to the working directory inside the container
 COPY . .
+
+# Set ownership to the non-root user
+RUN chown -R app:app /usr/local/app
+
+# Switch to the non-root user
+USER app
 
 # Make port 80 available for links and/or publish
 EXPOSE 80

@@ -1,4 +1,26 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs & temp files
+*.log
+*.txt
+!requirements.txt
+final_result*.json
+e2e_debug_log.txt
+tests/e2e_debug_log.txt
+
+# Kubeconfig
 kubeconfig_agent
+.insforge/project.json
 
 # InsForge & AI agent skills
 .insforge
@@ -14,3 +36,4 @@ kubeconfig_agent
 .roo
 .trae
 .windsurf
+

@@ -13,4 +13,8 @@ COPY . .
 # create POST data files with ab friendly formats
 RUN python make-data.py
 
+# Create a non-root user and group
+RUN groupadd -r app && useradd -r -g app app && chown -R app:app /seed
+USER app
+
 CMD /seed/generate-votes.sh

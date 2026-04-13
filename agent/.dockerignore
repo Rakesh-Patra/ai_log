@@ -1,0 +1,48 @@
+# IDEs and Editors
+.vscode
+.idea
+.cursor
+.windsurf
+.trae
+
+# AI Tooling and Agent Caches
+.agent
+.agents
+.augment
+.claude
+.kilocode
+.qoder
+.qwen
+.roo
+.insforge
+
+# Python
+venv
+.venv
+env
+.env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+
+# Logs and Temp
+*.log
+*.txt
+!requirements.txt
+
+# Tests
+tests
+
+# App specific
+kubeconfig_agent
+server_startup.log
+full_server_log.txt
+final_result.json
+final_result_ok.json
+test_output.txt
+uvicorn_debug.log
+worker_error.txt
+curl_result.txt

@@ -23,4 +23,9 @@ RUN dotnet publish -c release -o /app -a $TARGETARCH --self-contained false --no
 FROM mcr.microsoft.com/dotnet/runtime:7.0
 WORKDIR /app
 COPY --from=build /app .
+
+# Create a non-root user
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
 ENTRYPOINT ["dotnet", "Worker.dll"]

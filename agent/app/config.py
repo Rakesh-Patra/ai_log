@@ -3,9 +3,10 @@ Application configuration using pydantic-settings.
 Loads settings from environment variables and .env file.
 """
 
+import os
 from functools import lru_cache
 
-from pydantic import AliasChoices, Field
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +17,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── API Keys ──────────────────────────────────────────────
@@ -26,13 +28,23 @@ class Settings(BaseSettings):
     model_temperature: float = 0.0
 
     # ── Kubernetes / MCP ──────────────────────────────────────
-    # KUBECONFIG (kubectl standard) and KUBECONFIG_PATH both accepted; prefer
-    # explicit paths in Docker (e.g. /app/kubeconfig_agent).
-    kubeconfig_path: str = Field(
-        default="/home/rakesh_patra/.kube/config",
-        validation_alias=AliasChoices("KUBECONFIG", "KUBECONFIG_PATH"),
-    )
+    # Env: KUBECONFIG_PATH (pydantic-settings) or KUBECONFIG (kubectl standard).
+    kubeconfig_path: str = "/home/rakesh_patra/.kube/config"
     npx_path: str = "/usr/bin/npx"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _kubeconfig_from_env(cls, data: object) -> object:
+        """Resolve kubeconfig from KUBECONFIG / KUBECONFIG_PATH; drop stray env keys."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        out.pop("KUBECONFIG_PATH", None)
+        out.pop("KUBECONFIG", None)
+        kc = os.environ.get("KUBECONFIG") or os.environ.get("KUBECONFIG_PATH")
+        if kc:
+            out["kubeconfig_path"] = kc
+        return out
 
     # ── Server Settings ───────────────────────────────────────
     app_name: str = "Kubernetes AI Agent"
@@ -46,6 +58,12 @@ class Settings(BaseSettings):
     temporal_host: str = "127.0.0.1"
     temporal_port: int = 7233
     log_level: str = "INFO"
+
+    # ── API Authentication ───────────────────────────────────
+    api_auth_key: str | None = None  # Set API_AUTH_KEY in .env for production
+
+    # ── CORS ─────────────────────────────────────────────────
+    cors_origins: str = "http://localhost:3000"  # Comma-separated origins
 
     # ── Production Safety ────────────────────────────────────
     protected_namespaces: list[str] = ["kube-system",  "kube-public", "kube-node-lease"]

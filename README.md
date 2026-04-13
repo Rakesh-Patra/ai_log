@@ -1,18 +1,15 @@
-# K8s Kind Voting App
+# Kubernetes voting stack on kind (with optional AI agent)
 
-A comprehensive guide for setting up a Kubernetes cluster using Kind on an AWS EC2 instance, installing and configuring Argo CD, and deploying applications using Argo CD.
+End-to-end demo: a **multi-service voting app** (vote → Redis → worker → Postgres → result) on **Kubernetes**, with guides for **kind** on **AWS EC2**, **Argo CD**, and observability. An optional **FastAPI + LangGraph** agent (`agent/`) can answer Kubernetes questions using Gemini and MCP-style tooling.
 
-## Overview
+## What’s in this repo
 
-This guide covers the steps to:
-- Launch an AWS EC2 instance.
-- Install Docker and Kind.
-- Create a Kubernetes cluster using Kind.
-- Install and access kubectl.
-- Set up the Kubernetes Dashboard.
-- Install and configure Argo CD.
-- Connect and manage your Kubernetes cluster with Argo CD.
-
+| Area | Description |
+|------|-------------|
+| **Microservices** | `vote/` (Python), `worker/` (.NET), `result/` (Node.js), Redis, Postgres |
+| **Kubernetes** | `k8s/` manifests, kind-oriented setup |
+| **Platform** | kind, kubectl, optional Kubernetes Dashboard, Argo CD (see guides below) |
+| **AI agent** | `agent/` — REST API, guardrails, optional LangSmith tracing — see [agent/README.md](agent/README.md) |
 
 ## Architecture
 
@@ -20,41 +17,77 @@ This guide covers the steps to:
 
 ## Observability
 
-![Grafana diagram](grafana.png)
+![Grafana diagram](grafana.png)  
 ![Prometheus diagram](prometheus.png)
 
-* A front-end web app in [Python](/vote) which lets you vote between two options
-* A [Redis](https://hub.docker.com/_/redis/) which collects new votes
-* A [.NET](/worker/) worker which consumes votes and stores them in…
-* A [Postgres](https://hub.docker.com/_/postgres/) database backed by a Docker volume
-* A [Node.js](/result) web app which shows the results of the voting in real time
+## Quick start (local)
 
+1. **Clone** the repository (do not commit secrets; see [Security before you push](#security-before-you-push-to-github)).
+2. **Environment file**  
+   - Docker Compose reads Postgres-related variables from **`agent/.env`** only.  
+   - Copy the template:  
+     `cp agent/.env.example agent/.env` (Linux/macOS) or `copy agent\.env.example agent\.env` (Windows), then edit values.  
+   - Root [`.env.example`](.env.example) is a short pointer to the same.
+3. **Run with Docker Compose** (from repo root; adjust if your layout differs):
 
+   ```bash
+   docker compose up --build
+   ```
 
-## Resume Description
+4. Open the **vote** and **result** UIs using the ports defined in your `docker-compose.yml` (commonly `5000` / `5001` — check the file for your setup).
 
-### Project Title: 
+For the **Kubernetes AI agent** alone: install Python deps under `agent/`, configure `agent/.env`, then run Uvicorn as described in [agent/README.md](agent/README.md).
 
-Automated Deployment of Scalable Applications on AWS EC2 with Kubernetes and Argo CD
+## EC2, kind, and Argo CD (high level)
 
-### Description: 
+This project was documented around:
 
-Led the deployment of scalable applications on AWS EC2 using Kubernetes and Argo CD for streamlined management and continuous integration. Orchestrated deployments via Kubernetes dashboard, ensuring efficient resource utilization and seamless scaling.
+- Launching an **AWS EC2** instance  
+- Installing **Docker** and **kind**, creating a cluster  
+- **kubectl** and optional **Kubernetes Dashboard**  
+- **Argo CD** install and GitOps-style app deployment  
 
-### Key Technologies:
+Use your own cluster credentials and never commit kubeconfig or cloud keys.
 
-* AWS EC2: Infrastructure hosting for Kubernetes clusters.
-* Kubernetes Dashboard: User-friendly interface for managing containerized applications.
-* Argo CD: Continuous Delivery tool for automated application deployments.
+## Troubleshooting (Docker Compose)
 
-### Achievements:
+### Temporal restarts: `password authentication failed for user "postgres"`
 
-Implemented Kubernetes dashboard for visual management of containerized applications on AWS EC2 instances.
-Utilized Argo CD for automated deployment pipelines, enhancing deployment efficiency by 60%.
-Achieved seamless scaling and high availability, supporting 99.9% uptime for critical applications.
-This project description emphasizes your role in leveraging AWS EC2, Kubernetes, and Argo CD to optimize application deployment and management processes effectively.
+- **`POSTGRES_PWD` and `POSTGRES_PASSWORD` in `agent/.env` must be the same string.** The `db` service uses `POSTGRES_PASSWORD` when the data directory is first created; `temporalio/auto-setup` connects with `POSTGRES_PWD`.
+- If you **changed the password in `.env` after Postgres already ran once**, the old password is still stored in the **`db-data` volume**. Either set both variables back to the password used on first run, or reset the volume (deletes DB data):
 
+  ```bash
+  docker compose down -v
+  docker compose up -d --build
+  ```
 
-### Aapke DevOps Wale Bhaiya
-### [TrainWithShubham](https://www.trainwithshubham.com/)
+- On Windows, avoid stray spaces or mismatched quotes in `.env`; use UTF-8 without a BOM if you edit with Notepad.
 
+## Security before you push to GitHub
+
+- **`agent/.env` is gitignored** — it must stay local. Only **`agent/.env.example`** (placeholders) belongs in the repo.  
+- Before `git add`, run:
+
+  ```bash
+  git status
+  git check-ignore -v agent/.env
+  ```
+
+  You should see that `agent/.env` is ignored.  
+- **Do not commit**: API keys (Google, LangChain/LangSmith), database passwords, kubeconfig files, or InsForge-style project JSON with keys.  
+- **If a secret was ever committed** (or pasted in a chat/issue), **rotate it** in the provider console and treat the old value as compromised.  
+- Demo manifests (for example base64 in sample Secrets) are for **local/kind learning only** — use sealed secrets or external secret managers in real environments.
+
+## Resume / portfolio blurb (short)
+
+**Title:** Automated deployment of containerized apps on AWS with Kubernetes and Argo CD  
+
+**Summary:** Hands-on project deploying a voting application on Kubernetes (kind), integrating CI/CD patterns with Argo CD, observability, and optional AI-assisted cluster tooling.  
+
+**Stack:** AWS EC2, Docker, kind, Kubernetes, Argo CD, Redis, Postgres, optional Grafana/Prometheus.
+
+## Credits
+
+Inspired by classic **Docker example-voting-app**-style architectures and extended with k8s/kind/Argo CD workflows.  
+
+**Aapke DevOps Wale Bhaiya** — [TrainWithShubham](https://www.trainwithshubham.com/)

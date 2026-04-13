@@ -2,14 +2,15 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: result
-  name: result
+    app: vote
+  name: vote
 spec:
   type: NodePort
   ports:
-  - name: "result-service"
-    port: 5001
+  - name: "vote-service"
+    port: 5000
     targetPort: 80
-    nodePort: 31001
+    nodePort: 31002
   selector:
-    app: result
+    app: vote
+  

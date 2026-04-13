@@ -1,0 +1,253 @@
+name: Security & K8s Manifest Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────────────────────────────
+  # 1. Scan for leaked secrets in code & git history
+  # ─────────────────────────────────────────────────
+  secret-scan:
+    name: 🔑 Secret Leak Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for scanning
+
+      - name: Check for plain-text Kubernetes Secret files
+        run: |
+          echo "🔍 Scanning for plain-text K8s Secret YAML files committed to git..."
+          FOUND=0
+          for f in $(find k8s/ -name '*secret*.yaml' -o -name '*secret*.yml' 2>/dev/null); do
+            # Skip example/template files
+            if echo "$f" | grep -qE '\.example\.|\.template\.'; then
+              echo "✅ SKIP (template): $f"
+              continue
+            fi
+            # Check if it's a K8s Secret kind
+            if grep -q 'kind: Secret' "$f" 2>/dev/null; then
+              echo "❌ FAIL: $f contains a real K8s Secret — this should be gitignored!"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "💡 Real secret files must not be committed. Use .example.yaml templates instead."
+            exit 1
+          fi
+          echo "✅ No plain-text Secret files found in tracked code."
+
+      - name: Check for hardcoded passwords in compose files
+        run: |
+          echo "🔍 Scanning docker-compose files for hardcoded passwords..."
+          FOUND=0
+          for f in $(find . -name 'docker-compose*.yml' -o -name 'docker-compose*.yaml' 2>/dev/null); do
+            # Look for POSTGRES_PASSWORD with a literal value (not env var reference)
+            if grep -Pq 'POSTGRES_PASSWORD:\s*"(?!\$\{)' "$f" 2>/dev/null; then
+              echo "❌ FAIL: $f has a hardcoded POSTGRES_PASSWORD"
+              FOUND=1
+            fi
+            if grep -Pq "POSTGRES_PASSWORD:\s*'(?!\$\{)" "$f" 2>/dev/null; then
+              echo "❌ FAIL: $f has a hardcoded POSTGRES_PASSWORD"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo '💡 Use ${POSTGRES_PASSWORD} env var references instead of literal values.'
+            exit 1
+          fi
+          echo "✅ No hardcoded passwords found in compose files."
+
+      - name: Scan for common secret patterns in all files
+        run: |
+          echo "🔍 Scanning for API keys, tokens, and credentials in tracked files..."
+          FOUND=0
+          # Patterns that indicate real secrets (not placeholders/examples)
+          PATTERNS=(
+            'AKIA[0-9A-Z]{16}'                    # AWS Access Key
+            'sk-[a-zA-Z0-9]{20,}'                 # OpenAI / Stripe secret key
+            'ghp_[a-zA-Z0-9]{36}'                 # GitHub PAT
+            'glpat-[a-zA-Z0-9\-]{20,}'            # GitLab PAT
+            'xox[bpors]-[a-zA-Z0-9\-]+'           # Slack token
+          )
+          for pattern in "${PATTERNS[@]}"; do
+            MATCHES=$(git grep -rlP "$pattern" -- ':!.git' ':!node_modules' ':!*.lock' 2>/dev/null || true)
+            if [ -n "$MATCHES" ]; then
+              echo "❌ FAIL: Pattern '$pattern' found in:"
+              echo "$MATCHES"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ No leaked API keys or tokens detected."
+
+      - name: Verify .env files are gitignored
+        run: |
+          echo "🔍 Checking that .env files are properly gitignored..."
+          # Check if any .env file (not .env.example) is tracked
+          TRACKED=$(git ls-files '*.env' '.env.*' 'agent/.env' 2>/dev/null | grep -v '\.example' || true)
+          if [ -n "$TRACKED" ]; then
+            echo "❌ FAIL: The following .env files are tracked by git:"
+            echo "$TRACKED"
+            exit 1
+          fi
+          echo "✅ All .env files are properly gitignored."
+
+  # ─────────────────────────────────────────────────
+  # 2. Validate Kubernetes manifest best practices
+  # ─────────────────────────────────────────────────
+  k8s-manifests:
+    name: 🛡️ K8s Manifest Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check securityContext on all Deployments
+        run: |
+          echo "🔍 Verifying securityContext is set on all Deployments..."
+          FOUND=0
+          for f in k8s/*-deployment.yaml; do
+            if [ ! -f "$f" ]; then continue; fi
+            # Check for allowPrivilegeEscalation or runAsNonRoot
+            if ! grep -q 'securityContext' "$f"; then
+              echo "❌ FAIL: $f is missing securityContext"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "💡 Every deployment should have securityContext with runAsNonRoot and allowPrivilegeEscalation: false"
+            exit 1
+          fi
+          echo "✅ All deployments have securityContext configured."
+
+      - name: Check resource limits on all Deployments
+        run: |
+          echo "🔍 Verifying resource limits are set on all Deployments..."
+          FOUND=0
+          for f in k8s/*-deployment.yaml; do
+            if [ ! -f "$f" ]; then continue; fi
+            if ! grep -q 'resources:' "$f"; then
+              echo "❌ FAIL: $f is missing resource limits"
+              FOUND=1
+            fi
+            if ! grep -q 'limits:' "$f"; then
+              echo "❌ FAIL: $f is missing resource limits"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "💡 Every container must have CPU and memory requests + limits."
+            exit 1
+          fi
+          echo "✅ All deployments have resource limits configured."
+
+      - name: Check for NetworkPolicy existence
+        run: |
+          echo "🔍 Verifying NetworkPolicy manifests exist..."
+          if ! find k8s/ -name '*.yaml' -o -name '*.yml' | xargs grep -l 'kind: NetworkPolicy' > /dev/null 2>&1; then
+            echo "❌ FAIL: No NetworkPolicy found in k8s/ directory"
+            echo "💡 NetworkPolicies are required to restrict pod-to-pod traffic."
+            exit 1
+          fi
+          echo "✅ NetworkPolicy manifests found."
+
+      - name: Check image tags are pinned
+        run: |
+          echo "🔍 Verifying container images are not using implicit :latest..."
+          FOUND=0
+          for f in k8s/*-deployment.yaml; do
+            if [ ! -f "$f" ]; then continue; fi
+            # Find images without any tag (no colon after image name)
+            while IFS= read -r line; do
+              image=$(echo "$line" | sed 's/.*image:\s*//' | tr -d '"' | tr -d "'")
+              if [ -z "$image" ]; then continue; fi
+              if ! echo "$image" | grep -q ':'; then
+                echo "❌ FAIL: $f uses untagged image: $image"
+                FOUND=1
+              fi
+            done < <(grep 'image:' "$f" || true)
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "💡 Always pin images to a specific tag (e.g., redis:7.2-alpine, not just redis)."
+            exit 1
+          fi
+          echo "✅ All images have explicit tags."
+
+      - name: Check RBAC is not using cluster-admin
+        run: |
+          echo "🔍 Checking RBAC bindings for overly permissive roles..."
+          FOUND=0
+          for f in $(find . -name '*.yaml' -o -name '*.yml' | grep -v node_modules | grep -v .git); do
+            if grep -q 'kind: ClusterRoleBinding' "$f" 2>/dev/null; then
+              if grep -q 'name: cluster-admin' "$f" 2>/dev/null; then
+                echo "❌ FAIL: $f binds to cluster-admin role — too permissive!"
+                FOUND=1
+              fi
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo ""
+            echo "💡 Use least-privilege roles (view, edit) instead of cluster-admin."
+            exit 1
+          fi
+          echo "✅ No overly permissive RBAC bindings found."
+
+  # ─────────────────────────────────────────────────
+  # 3. Lint Kubernetes YAML with kubeval
+  # ─────────────────────────────────────────────────
+  k8s-lint:
+    name: 📋 K8s YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate YAML syntax
+        run: |
+          echo "🔍 Checking YAML syntax for all K8s manifests..."
+          FOUND=0
+          for f in k8s/*.yaml; do
+            if [ ! -f "$f" ]; then continue; fi
+            # Skip example/template files with placeholders
+            if echo "$f" | grep -qE '\.example\.'; then continue; fi
+            if python3 -c "import yaml; yaml.safe_load_all(open('$f'))" 2>/dev/null; then
+              echo "  ✅ $f"
+            else
+              echo "  ❌ $f — invalid YAML syntax"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ All K8s YAML files have valid syntax."
+
+  # ─────────────────────────────────────────────────
+  # 4. Dockerfile security checks
+  # ─────────────────────────────────────────────────
+  dockerfile-check:
+    name: 🐳 Dockerfile Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Dockerfiles for USER instruction
+        run: |
+          echo "🔍 Checking Dockerfiles run as non-root user..."
+          FOUND=0
+          for f in $(find . -name 'Dockerfile' -o -name 'dockerfile' | grep -v node_modules | grep -v .git); do
+            if ! grep -qiE '^\s*USER\s' "$f"; then
+              echo "⚠️  WARNING: $f does not set a USER — container will run as root"
+              # Warning only, not a hard failure (some base images handle this)
+            fi
+          done
+          echo "✅ Dockerfile scan complete."

@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Kubernetes secrets (real values) — only templates belong in git
+k8s/db-secret.yaml
+k8s/redis-secret.yaml
+!k8s/*-secret.example.yaml
+
 *.pyc
 project.lock.json
 bin/

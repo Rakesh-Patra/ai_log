@@ -14,6 +14,17 @@ spec:
       labels:
         app: worker
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
-      - image: dockersamples/examplevotingapp_worker
+      - image: dockersamples/examplevotingapp_worker:latest
         name: worker
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false

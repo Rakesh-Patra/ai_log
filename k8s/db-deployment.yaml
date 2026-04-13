@@ -14,6 +14,8 @@ spec:
       labels:
         app: db
     spec:
+      securityContext:
+        fsGroup: 999
       containers:
       - image: postgres:15-alpine
         name: postgres
@@ -31,6 +33,15 @@ spec:
         ports:
         - containerPort: 5432
           name: postgres
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
         volumeMounts:
         - mountPath: /var/lib/postgresql/data
           name: db-data

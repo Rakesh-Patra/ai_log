@@ -14,9 +14,20 @@ spec:
       labels:
         app: vote
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
-      - image: dockersamples/examplevotingapp_vote
+      - image: dockersamples/examplevotingapp_vote:latest
         name: vote
         ports:
         - containerPort: 80
           name: vote
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false

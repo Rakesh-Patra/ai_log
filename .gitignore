@@ -17,3 +17,16 @@ node_modules/
 
 # Local-only logs (do not commit)
 agent_temp_logs.txt
+vault-logs.txt
+
+# Never commit service account token secrets
+k8s/reviewer-secret.yaml
+
+# Local media / docs exports (ignore unless intentionally tracked)
+*.png
+linkedin_carousel*.pdf
+final_combined_carousel.pdf
+
+# Local helper scripts for generating PDFs
+make_pdf.py
+merge_pdf.py

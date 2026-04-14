@@ -1,0 +1,24 @@
+# NetworkPolicy: Only worker and result pods can access the database on port 5432.
+# All other pods (including vote and redis) are blocked from reaching db.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-allow-worker-result-only
+spec:
+  podSelector:
+    matchLabels:
+      app: db
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: worker
+    - podSelector:
+        matchLabels:
+          app: result
+    ports:
+    - protocol: TCP
+      port: 5432
+

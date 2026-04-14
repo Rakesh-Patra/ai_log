@@ -1,0 +1,30 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vote-route
+spec:
+  parentRefs:
+    - name: voting-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /vote
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: vote
+          port: 5000
+    # Also map the root path to vote as default
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: vote
+          port: 5000
+

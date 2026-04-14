@@ -13,23 +13,24 @@ spec:
     metadata:
       labels:
         app: db
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "app-role"
+        vault.hashicorp.com/agent-inject-secret-db-credentials: "secret/data/db-credentials"
+        vault.hashicorp.com/agent-inject-template-db-credentials: |
+          {{- with secret "secret/data/db-credentials" -}}
+          export POSTGRES_USER="{{ .Data.data.username }}"
+          export POSTGRES_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}
     spec:
       securityContext:
         fsGroup: 999
+      serviceAccountName: voting-app
       containers:
       - image: postgres:15-alpine
         name: postgres
-        env:
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: db-credentials
-              key: username
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-credentials
-              key: password
+        command: ["/bin/sh", "-c"]
+        args: ["source /vault/secrets/db-credentials && docker-entrypoint.sh postgres"]
         ports:
         - containerPort: 5432
           name: postgres
@@ -49,14 +50,4 @@ spec:
       - name: db-data
         persistentVolumeClaim:
           claimName: db-data-pvc
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: db-data-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+

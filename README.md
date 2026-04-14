@@ -11,6 +11,13 @@ End-to-end demo: a **multi-service voting app** (vote → Redis → worker → P
 | **Platform** | kind, kubectl, optional Kubernetes Dashboard, Argo CD (see guides below) |
 | **AI agent** | `agent/` — REST API, guardrails, optional LangSmith tracing — see [agent/README.md](agent/README.md) |
 
+## Vault + Gateway API notes (Kubernetes)
+
+- **Secrets**: DB/Redis credentials are stored in **Vault** and injected into pods (instead of applying real `Secret` YAMLs).
+- **Routing**: Gateway API manifests in `k8s/` (GatewayClass/Gateway/HTTPRoute) route `/`, `/vote`, `/result`.
+- **Minimal dev safety**: DB/Redis run with `ServiceAccount` `voting-app`, and Vault role `app-role` is bound to that ServiceAccount (not `default`).
+- **DevOps onboarding**: see [`k8s/DEVOPS_USAGE_EXAMPLE.md`](k8s/DEVOPS_USAGE_EXAMPLE.md).
+
 ## Architecture
 
 ![Architecture diagram](k8s-kind-voting-app.png)

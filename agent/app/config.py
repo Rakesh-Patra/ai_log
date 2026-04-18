@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # ── Kubernetes / MCP ──────────────────────────────────────
     # Env: KUBECONFIG_PATH (pydantic-settings) or KUBECONFIG (kubectl standard).
     kubeconfig_path: str = "/home/rakesh_patra/.kube/config"
-    npx_path: str = "/usr/bin/npx"
+    npx_path: str = "npx"
 
     @model_validator(mode="before")
     @classmethod

@@ -21,7 +21,7 @@ print("[init] Libraries loaded.", flush=True)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 KUBECONFIG = os.getenv("KUBECONFIG_PATH", "/home/rakesh_patra/.kube/config")
-NPX_PATH = os.getenv("NPX_PATH", "/usr/bin/npx")
+NPX_PATH = os.getenv("NPX_PATH", "npx")
 AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT", "120"))  # seconds
 
 

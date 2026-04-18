@@ -13,21 +13,10 @@ spec:
     metadata:
       labels:
         app: redis
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "app-role"
-        vault.hashicorp.com/agent-inject-secret-redis-credentials: "secret/data/redis-credentials"
-        vault.hashicorp.com/agent-inject-template-redis-credentials: |
-          {{- with secret "secret/data/redis-credentials" -}}
-          export REDIS_PASSWORD="{{ .Data.data.password }}"
-          {{- end -}}
     spec:
-      serviceAccountName: voting-app
       containers:
       - image: redis:alpine
         name: redis
-        command: ["/bin/sh", "-c"]
-        args: ["source /vault/secrets/redis-credentials && redis-server --requirepass $REDIS_PASSWORD"]
         ports:
         - containerPort: 6379
           name: redis

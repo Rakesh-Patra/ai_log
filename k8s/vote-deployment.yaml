@@ -14,8 +14,7 @@ spec:
       labels:
         app: vote
     spec:
-      securityContext:
-        runAsNonRoot: true
+      serviceAccountName: voting-app
       containers:
       - image: dockersamples/examplevotingapp_vote:latest
         name: vote

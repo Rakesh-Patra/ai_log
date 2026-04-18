@@ -13,12 +13,22 @@ spec:
     metadata:
       labels:
         app: result
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "app-role"
+        vault.hashicorp.com/agent-inject-secret-db-credentials: "secret/data/db-credentials"
+        vault.hashicorp.com/agent-inject-template-db-credentials: |
+          {{- with secret "secret/data/db-credentials" -}}
+          export POSTGRES_USER="{{ .Data.data.username }}"
+          export POSTGRES_PASSWORD="{{ .Data.data.password }}"
+          {{- end -}}
     spec:
-      securityContext:
-        runAsNonRoot: true
+      serviceAccountName: voting-app
       containers:
       - image: dockersamples/examplevotingapp_result:latest
         name: result
+        command: ["/bin/sh", "-c"]
+        args: [". /vault/secrets/db-credentials && nodemon server.js"]
         ports:
         - containerPort: 80
           name: result

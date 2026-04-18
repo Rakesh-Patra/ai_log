@@ -45,7 +45,34 @@ agent/
 ### Output Guards
 - **PII Redaction** – Automatically redacts emails, IPs, tokens, keys, and secrets
 
-## Setup
+## Pull and Run from Docker Hub 🐳
+
+The agent image is available on Docker Hub as `patracoder/k8s-ai-agent:v1.0`.
+
+### Run the Agent
+To start the agent container, you must provide your Google API Key and mount your local `kubeconfig`:
+
+```bash
+docker run -d -p 8000:8000 \
+  -e GOOGLE_API_KEY="your_google_api_key_here" \
+  -v ~/.kube:/home/app/.kube \
+  patracoder/k8s-ai-agent:v1.0
+```
+
+### Required Variables
+| Variable | Description |
+|---|---|
+| `GOOGLE_API_KEY` | Your Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/). |
+| `KUBECONFIG` | (Optional) Inside the container, set to `/home/app/.kube/config` by default. |
+
+### Required Volumes
+| Volume | Description |
+|---|---|
+| `~/.kube` | Mount your local `.kube` folder to `/home/app/.kube` so the agent can interact with your cluster. |
+
+---
+
+## Setup (Local Development)
 
 ### 1. Install dependencies
 

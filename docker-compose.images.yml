@@ -1,12 +1,9 @@
 # for running in docker compose with prebuilt images
-
-# version is now using "compose spec"
-# v2 and v3 are now combined!
-# docker-compose v1.27+ required
+# all images are tagged v1.0 and pushed to Docker Hub (patracoder) and GHCR.
 
 services:
   vote:
-    image: dockersamples/examplevotingapp_vote
+    image: patracoder/examplevotingapp_vote:v1.0
     depends_on:
       redis:
         condition: service_healthy 
@@ -17,7 +14,7 @@ services:
       - back-tier
 
   result:
-    image: dockersamples/examplevotingapp_result
+    image: patracoder/examplevotingapp_result:v1.0
     depends_on:
       db:
         condition: service_healthy 
@@ -28,35 +25,12 @@ services:
       - back-tier
 
   worker:
-    image: dockersamples/examplevotingapp_worker
+    image: patracoder/examplevotingapp_worker:v1.0
     depends_on:
       redis:
         condition: service_healthy 
       db:
         condition: service_healthy 
-    networks:
-      - back-tier
-
-  redis:
-    image: redis:alpine
-    volumes:
-      - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /healthchecks/redis.sh
-      interval: "5s"
-    networks:
-      - back-tier
-
-  db:
-    image: postgres:15-alpine
-    env_file:
-      - ./agent/.env
-    volumes:
-      - "db-data:/var/lib/postgresql/data"
-      - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /healthchecks/postgres.sh
-      interval: "5s"
     networks:
       - back-tier
 
@@ -88,6 +62,62 @@ services:
       - TEMPORAL_PORT=7233
       - KUBECONFIG=/app/kubeconfig_agent/config
       - KUBECONFIG_PATH=/app/kubeconfig_agent/config
+    depends_on:
+      temporal:
+        condition: service_healthy
+    networks:
+      - back-tier
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - "./healthchecks:/healthchecks"
+    healthcheck:
+      test: /healthchecks/redis.sh
+      interval: "5s"
+    networks:
+      - back-tier
+
+  db:
+    image: postgres:15-alpine
+    env_file:
+      - ./agent/.env
+    volumes:
+      - "db-data:/var/lib/postgresql/data"
+      - "./healthchecks:/healthchecks"
+    healthcheck:
+      test: /healthchecks/postgres.sh
+      interval: "5s"
+    networks:
+      - back-tier
+
+  temporal:
+    image: temporalio/auto-setup:1.22.4
+    env_file:
+      - ./agent/.env
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_SEEDS=db
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "tctl --address temporal:7233 cluster health >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks:
+      - back-tier
+
+  temporal-ui:
+    image: temporalio/ui:2.21.3
+    ports:
+      - "8233:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
     depends_on:
       temporal:
         condition: service_healthy

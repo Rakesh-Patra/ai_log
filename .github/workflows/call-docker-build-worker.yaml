@@ -44,18 +44,20 @@ jobs:
       ### ENABLE ONE OR BOTH REGISTRIES
       ### tell docker where to push.
       ### NOTE if Docker Hub is set to true, you must set secrets above and also add account/repo/tags below
-      dockerhub-enable: false
+      dockerhub-enable: true
       ghcr-enable: true
 
       ### REQUIRED 
       ### A list of the account/repo names for docker build. List should match what's enabled above
       ### defaults to:
       image-names: |
+        patracoder/examplevotingapp_worker
         ghcr.io/${{ github.repository_owner }}/examplevotingapp_worker      
       ### REQUIRED set rules for tagging images, based on special action syntax:
       ### https://github.com/docker/metadata-action#tags-input
       ### defaults to:
       tag-rules: |
+        type=raw,value=v1.0,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
         type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
         type=ref,event=pr
       

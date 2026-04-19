@@ -4,12 +4,12 @@ End-to-end demo: a **multi-service voting app** (vote → Redis → worker → P
 
 ## What’s in this repo
 
-| Area | Description |
-|------|-------------|
-| **Microservices** | `vote/` (Python), `worker/` (.NET), `result/` (Node.js), Redis, Postgres |
-| **Kubernetes** | `k8s/` manifests, kind-oriented setup |
-| **Platform** | kind, kubectl, optional Kubernetes Dashboard, Argo CD |
-| **AI agent** | `agent/` — REST API, **FastMCP (IDE integration)**, LangGraph, guardrails, and cross-platform portability — Image: `patracoder/k8s-ai-agent:v1.0` |
+| Area | Description | Images (Docker Hub) |
+|------|-------------|---------------------|
+| **Microservices** | `vote/` (Python), `worker/` (.NET), `result/` (Node.js) | `patracoder/examplevotingapp_vote:v1.0`<br>`patracoder/examplevotingapp_result:v1.0`<br>`patracoder/examplevotingapp_worker:v1.0` |
+| **Kubernetes** | `k8s/` manifests, kind-oriented setup | |
+| **Platform** | kind, kubectl, Dashboard, Argo CD, Vault, Envoy | |
+| **AI agent** | `agent/` — FastAPI, MCP (IDE), LangGraph, Guardrails | `patracoder/k8s-ai-agent:v1.0` |
 
 
 ## Vault + Gateway API notes (Kubernetes)
@@ -38,9 +38,16 @@ End-to-end demo: a **multi-service voting app** (vote → Redis → worker → P
    - Root [`.env.example`](.env.example) is a short pointer to the same.
 3. **Run with Docker Compose** (from repo root; adjust if your layout differs):
 
-   ```bash
-   docker compose up --build
-   ```
+    ```bash
+    docker compose up --build
+    ```
+
+**Option 2: Run with prebuilt images (Fastest)**  
+If you want to run the stack without building from source, use the pre-synchronized images file:
+
+    ```bash
+    docker compose -f docker-compose.images.yml up
+    ```
 
 4. Open the **vote** and **result** UIs using the ports defined in your `docker-compose.yml` (commonly `5000` / `5001` — check the file for your setup).
 

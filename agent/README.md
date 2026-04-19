@@ -19,7 +19,11 @@ agent/
 │   │   └── schemas.py        # Pydantic request/response models
 │   └── utils/
 │       └── logging.py        # Structured JSON logging
-├── .env.example              # Template — copy to .env (never commit .env)
+├── mcp_server.py             # 🆕 FastMCP server for IDE integration
+├── run_mcp.bat               # Windows launcher for MCP
+├── run_mcp.sh                # Linux/Mac launcher for MCP
+├── test_mcp_call.py          # Verification script
+├── .env/ .env.example        # Environment configuration
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This file
 ```
@@ -31,9 +35,10 @@ agent/
 | 🤖 **AI Agent** | LangGraph ReAct agent with Gemini model |
 | 🛡️ **Guardrails AI** | Prompt injection detection, topic restriction, PII redaction |
 | ⚡ **FastAPI Backend** | REST API with Swagger docs, SSE streaming |
-| 📝 **Conversation History** | Multi-turn context tracking |
+| 💻 **IDE Integration** | **FastMCP** server for Cursor, Claude Desktop, and more |
+| 📝 **Conversation History** | Multi-turn context tracking via InsForge |
 | 📊 **Structured Logging** | JSON logs via structlog |
-| 🔧 **Kubernetes MCP** | Direct cluster management via MCP tools |
+| 🔧 **Kubernetes Tools** | 22+ direct cluster management tools via MCP |
 
 ## Guardrails
 
@@ -44,6 +49,23 @@ agent/
 
 ### Output Guards
 - **PII Redaction** – Automatically redacts emails, IPs, tokens, keys, and secrets
+
+## 💻 IDE Integration (via MCP)
+
+You can use this agent directly in your IDE (Cursor, Claude Desktop, VS Code) using the **Model Context Protocol (MCP)**. This allows the AI in your editor to call your specialized Kubernetes agent to perform cluster operations.
+
+### Windows (Cursor / Claude Desktop)
+1. Ensure your `.env` is configured with `GOOGLE_API_KEY`.
+2. Open your IDE's MCP settings.
+3. Add a new command-based MCP server:
+   - **Command**: `c:\ai_log\k8s-kind-voting-app\agent\run_mcp.bat`
+
+### Linux / Mac
+1. Configure your `.env`.
+2. Add the MCP server in your IDE settings:
+   - **Command**: `/path/to/k8s-kind-voting-app/agent/run_mcp.sh`
+
+---
 
 ## Pull and Run from Docker Hub 🐳
 

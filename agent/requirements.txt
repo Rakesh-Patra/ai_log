@@ -13,3 +13,4 @@ temporalio~=1.6.0
 guardrails-ai
 slowapi~=0.1.9
 # Specific hub validators will be installed via CLI or extra requirements
+fastmcp~=0.4.1

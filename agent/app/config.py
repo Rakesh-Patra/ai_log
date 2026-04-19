@@ -29,21 +29,28 @@ class Settings(BaseSettings):
 
     # ── Kubernetes / MCP ──────────────────────────────────────
     # Env: KUBECONFIG_PATH (pydantic-settings) or KUBECONFIG (kubectl standard).
-    kubeconfig_path: str = "/home/rakesh_patra/.kube/config"
+    kubeconfig_path: str = os.path.expanduser("~/.kube/config")
     npx_path: str = "npx"
 
     @model_validator(mode="before")
     @classmethod
     def _kubeconfig_from_env(cls, data: object) -> object:
-        """Resolve kubeconfig from KUBECONFIG / KUBECONFIG_PATH; drop stray env keys."""
+        """Resolve kubeconfig from KUBECONFIG / KUBECONFIG_PATH and expand user home."""
         if not isinstance(data, dict):
             return data
+        
         out = dict(data)
-        out.pop("KUBECONFIG_PATH", None)
-        out.pop("KUBECONFIG", None)
-        kc = os.environ.get("KUBECONFIG") or os.environ.get("KUBECONFIG_PATH")
+        
+        # Get from dict (which includes .env) or environment
+        kc = out.get("kubeconfig_path") or os.environ.get("KUBECONFIG") or os.environ.get("KUBECONFIG_PATH")
+        
         if kc:
-            out["kubeconfig_path"] = kc
+            # Expand ~ and normalize slashes for the current OS
+            out["kubeconfig_path"] = os.path.abspath(os.path.expanduser(kc))
+        else:
+            # Fallback to standard location
+            out["kubeconfig_path"] = os.path.abspath(os.path.expanduser("~/.kube/config"))
+            
         return out
 
     # ── Server Settings ───────────────────────────────────────

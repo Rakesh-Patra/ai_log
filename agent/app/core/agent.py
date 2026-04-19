@@ -48,15 +48,28 @@ ALLOWED_COMMANDS = {
 }
 
 @tool
-async def shell(command: str) -> str:
+async def shell(command: str, is_approved: bool = False) -> str:
     """Run a shell command on the host. Use for kubectl, helm, and other CLI operations.
 
     Args:
         command: The shell command to execute, e.g. 'kubectl get pods -A'.
+        is_approved: Set to True ONLY if the user has explicitly approved this specific command.
     """
     command = (command or "").strip()
     if not command:
         return "ERROR: Empty command"
+
+    # Human-in-the-loop: Block destructive commands unless explicitly approved
+    destructive_verbs = {"delete", "apply", "patch", "edit", "scale", "create", "exec", "replace", "rollout"}
+    command_parts = set(command.lower().split())
+    is_destructive = any(verb in command_parts for verb in destructive_verbs)
+    
+    if is_destructive and not is_approved:
+        return (
+            f"ACTION BLOCKED: The command '{command}' is destructive. "
+            f"You MUST reply to the user, explain exactly what this command will do, "
+            f"and ask for their explicit approval before you run it again with is_approved=True."
+        )
 
     # Security: block shell metacharacters to avoid injection.
     # (Even with an allowlist, `kubectl ...; <anything>` would run if we used a shell.)
@@ -104,7 +117,8 @@ _BASE_PROMPT = (
     "Guidelines:\n"
     "- Always verify the cluster context before making changes\n"
     "- Provide clear, structured output with resource names and statuses\n"
-    "- Warn the user before any destructive operations\n"
+    "- For destructive commands (delete, patch, etc), the shell tool will block you and request user approval.\n"
+    "- When blocked, explain the command to the user and ask them to approve it. ONLY proceed with `is_approved=True` once they say yes.\n"
     "- If a tool call fails, explain the error and suggest alternatives\n"
     "- Format output using markdown tables when listing resources\n"
     "- CRITICAL: To run `kubectl` or `helm` commands, you MUST call the tool named `shell` and pass your command as the argument."

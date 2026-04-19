@@ -9,7 +9,7 @@ End-to-end demo: a **multi-service voting app** (vote → Redis → worker → P
 | **Microservices** | `vote/` (Python), `worker/` (.NET), `result/` (Node.js), Redis, Postgres |
 | **Kubernetes** | `k8s/` manifests, kind-oriented setup |
 | **Platform** | kind, kubectl, optional Kubernetes Dashboard, Argo CD |
-| **AI agent** | `agent/` — REST API, LangGraph, guardrails, optional LangSmith tracing — Image: `patracoder/k8s-ai-agent:v1.0` |
+| **AI agent** | `agent/` — REST API, **FastMCP (IDE integration)**, LangGraph, guardrails, and cross-platform portability — Image: `patracoder/k8s-ai-agent:v1.0` |
 
 
 ## Vault + Gateway API notes (Kubernetes)

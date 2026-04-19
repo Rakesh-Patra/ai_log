@@ -21,9 +21,10 @@ async def require_api_key(api_key: str = Security(_api_key_header)) -> str:
     settings = get_settings()
     expected_key = settings.api_auth_key
 
-    # In dev mode, if no key is configured, skip auth
+    # In dev mode, if no key is configured, skip auth but log a warning
     if not expected_key:
         if settings.app_env == "dev":
+            logger.warning("INSECURE_MODE: API running without X-API-Key in dev environment")
             return "dev-bypass"
         raise HTTPException(
             status_code=500,

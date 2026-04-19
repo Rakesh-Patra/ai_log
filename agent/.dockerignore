@@ -19,6 +19,7 @@
 # Python
 venv
 .venv
+venv_win
 env
 .env
 __pycache__

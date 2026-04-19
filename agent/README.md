@@ -23,7 +23,7 @@ agent/
 ├── run_mcp.bat               # Windows launcher for MCP
 ├── run_mcp.sh                # Linux/Mac launcher for MCP
 ├── test_mcp_call.py          # Verification script
-├── .env/ .env.example        # Environment configuration
+├── .env.example        # Environment configuration
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This file
 ```
@@ -71,6 +71,9 @@ You can use this agent directly in your IDE (Cursor, Claude Desktop, VS Code) us
 
 The agent image is available on Docker Hub as `patracoder/k8s-ai-agent:v1.0`.
 
+> [!TIP]
+> This image is **multi-architecture** (`linux/amd64` and `linux/arm64`), meaning it works perfectly on regular servers as well as **Apple Silicon (M1/M2/M3)** Macs and ARM-based cloud instances.
+
 ### Run the Agent
 To start the agent container, you must provide your Google API Key and mount your local `kubeconfig`:
 
@@ -111,7 +114,11 @@ pip install -r requirements.txt
 Copy the example file and **never commit** the real `.env`:
 
 ```bash
+# Linux / macOS / WSL
 cp .env.example .env
+
+# Windows (PowerShell)
+copy .env.example .env
 ```
 
 Edit `.env` — required and optional variables are documented in [`.env.example`](.env.example). Minimum for the API:

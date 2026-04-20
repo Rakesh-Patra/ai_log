@@ -14,6 +14,7 @@ from langgraph.prebuilt import create_react_agent
 
 from app.config import get_settings
 from app.utils.logging import get_logger
+from prometheus_api_client import PrometheusConnect
 
 logger = get_logger(__name__)
 
@@ -48,7 +49,62 @@ ALLOWED_COMMANDS = {
 }
 
 @tool
-async def shell(command: str, is_approved: bool = False) -> str:
+async def prometheus_query(query: str) -> str:
+    """Query cluster metrics from Prometheus using PromQL. 
+    Use this to check CPU/RAM usage or error rates before taking action.
+
+    Args:
+        query: The PromQL query string (e.g., 'sum(rate(container_cpu_usage_seconds_total[5m])) by (pod)')
+    """
+    settings = get_settings()
+    try:
+        prom = PrometheusConnect(url=settings.prometheus_url, disable_ssl=True)
+        result = prom.custom_query(query=query)
+        return str(result)
+    except Exception as e:
+        logger.error("prometheus_query_failed", error=str(e))
+        return f"ERROR: Failed to query Prometheus: {str(e)}"
+
+@tool
+async def risk_analyzer(command: str) -> dict:
+    """Analyze the risk of a Kubernetes command on cluster stability.
+    Returns a risk score (0-100) and a justification.
+
+    Args:
+        command: The command to analyze.
+    """
+    command = command.lower()
+    risk_score = 0
+    justification = "Standard read or low-impact operation."
+
+    # Heuristic-based risk scoring for Senior AIOps logic
+    if any(verb in command for verb in ["delete", "remove"]):
+        risk_score = 80
+        justification = "Destructive operation: removing resources can cause downtime."
+    elif "patch" in command or "update" in command:
+        risk_score = 50
+        justification = "Modifying existing resources can cause unexpected side-effects."
+    elif "apply" in command or "create" in command:
+        risk_score = 40
+        justification = "Creating new resources consumes cluster capacity."
+    elif "exec" in command:
+        risk_score = 90
+        justification = "Interactive shell access is high-risk for security and stability."
+    elif "label" in command or "annotate" in command:
+        risk_score = 10
+        justification = "Metadata changes are generally low-risk."
+    
+    # Specific high-risk resources
+    if any(res in command for res in ["deployment", "service", "namespace", "node"]):
+        risk_score += 15
+    
+    return {
+        "risk_score": min(risk_score, 100),
+        "justification": justification
+    }
+
+@tool
+async def shell(command: str, is_approved: bool = False, risk_score: int = 0) -> str:
     """Run a shell command on the host. Use for kubectl, helm, and other CLI operations.
 
     Args:
@@ -59,7 +115,16 @@ async def shell(command: str, is_approved: bool = False) -> str:
     if not command:
         return "ERROR: Empty command"
 
-    # Human-in-the-loop: Block destructive commands unless explicitly approved
+    settings = get_settings()
+    
+    # Automatic Risk Management logic
+    if risk_score >= settings.risk_threshold and not is_approved:
+        return (
+            f"ACTION BLOCKED (RISK {risk_score}%): The command '{command}' exceeds your safety threshold of {settings.risk_threshold}%. "
+            f"You MUST explain the risk to the user and obtain explicit approval before you run it again with is_approved=True."
+        )
+
+    # Legacy fallback: block destructive commands even if no risk score was provided
     destructive_verbs = {"delete", "apply", "patch", "edit", "scale", "create", "exec", "replace", "rollout"}
     command_parts = set(command.lower().split())
     is_destructive = any(verb in command_parts for verb in destructive_verbs)
@@ -116,12 +181,12 @@ _BASE_PROMPT = (
     "you are doing and summarize the results clearly.\n\n"
     "Guidelines:\n"
     "- Always verify the cluster context before making changes\n"
-    "- Provide clear, structured output with resource names and statuses\n"
-    "- For destructive commands (delete, patch, etc), the shell tool will block you and request user approval.\n"
-    "- When blocked, explain the command to the user and ask them to approve it. ONLY proceed with `is_approved=True` once they say yes.\n"
+    "- 👁️ METRICS FIRST: Use `prometheus_query` to check cluster health (CPU/RAM) before making scaling or resource decisions.\n"
+    "- 🧠 RISK ANALYSIS: For any command that uses `shell`, you MUST first call `risk_analyzer` to understand the impact.\n"
+    "- 🛡️ GOVERNANCE: If risk > 30% or the command is destructive, the shell tool will block you. You MUST then explain the risk to the user and ask for approval.\n"
+    "- Provide clear, structured output with resource names and statuses using markdown tables\n"
     "- If a tool call fails, explain the error and suggest alternatives\n"
-    "- Format output using markdown tables when listing resources\n"
-    "- CRITICAL: To run `kubectl` or `helm` commands, you MUST call the tool named `shell` and pass your command as the argument."
+    "- CRITICAL: To run `kubectl` or `helm` commands, you MUST call the tool named `shell` and pass the command and your calculated `risk_score`."
 )
 
 _all_skills = _load_skills()
@@ -163,8 +228,8 @@ def create_k8s_agent(tools: list):
     """
     model = get_model()
 
-    # Append shell tool to the MCP tools list
-    all_tools = [*tools, shell]
+    # Append shell and AIOps tools to the MCP tools list
+    all_tools = [*tools, shell, prometheus_query, risk_analyzer]
 
     agent = create_react_agent(
         model=model,

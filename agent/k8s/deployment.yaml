@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: default
+  labels:
+    app: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      serviceAccountName: ai-sre-agent
+      containers:
+      - name: agent
+        image: patracoder/k8s-ai-agent:v1.0
+        ports:
+        - containerPort: 8000
+        env:
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: agent-secrets
+              key: GOOGLE_API_KEY
+        - name: PROMETHEUS_URL
+          value: "http://kind-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090"
+        - name: RISK_THRESHOLD
+          value: "30"
+        - name: APP_ENV
+          value: "prod"
+        - name: KUBECONFIG_PATH
+          value: "" # Empty tells the SDK to use in-cluster config
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: agent
+  ports:
+  - port: 8000
+    targetPort: 8000

@@ -61,6 +61,13 @@ class Settings(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
+    
+    # ── Observability ──────────────────────────────────────────
+    prometheus_url: str = "http://kind-prometheus-kube-prome-prometheus.monitoring:9090"
+
+    # ── AIOps Governance ──────────────────────────────────────
+    risk_threshold: int = 30 # Percent (0-100). Commands above this require human approval.
+
     # ── Temporal Settings ─────────────────────────────────────
     temporal_host: str = "127.0.0.1"
     temporal_port: int = 7233

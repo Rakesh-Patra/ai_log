@@ -14,3 +14,4 @@ guardrails-ai
 slowapi~=0.1.9
 # Specific hub validators will be installed via CLI or extra requirements
 fastmcp~=0.4.1
+prometheus-api-client~=0.5.5

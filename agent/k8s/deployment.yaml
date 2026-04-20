@@ -42,16 +42,3 @@ spec:
           limits:
             cpu: "500m"
             memory: "512Mi"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: agent
-  namespace: default
-spec:
-  type: ClusterIP
-  selector:
-    app: agent
-  ports:
-  - port: 8000
-    targetPort: 8000

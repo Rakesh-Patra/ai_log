@@ -1,5 +1,5 @@
 name: Build Agent
- 
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -18,34 +18,58 @@ on:
       - '.github/workflows/call-docker-build-agent.yaml'
 
 jobs:
-  call-docker-build:
-
-    name: Agent Call Docker Build
-
-    uses: dockersamples/.github/.github/workflows/reusable-docker-build.yaml@main
-
+  docker-build:
+    name: Agent Docker Build & Push
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       pull-requests: write
-    
-    secrets:
-      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-      dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    with:
-      
-      dockerhub-enable: true
-      ghcr-enable: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      image-names: |
-        patracoder/k8s-ai-agent
-        ghcr.io/${{ github.repository_owner }}/examplevotingapp_agent      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      tag-rules: |
-        type=raw,value=v1.0,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=ref,event=pr
-      
-      context: agent
-      platforms: linux/amd64,linux/arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            patracoder/k8s-ai-agent
+            ghcr.io/${{ github.repository_owner }}/examplevotingapp_agent
+          tags: |
+            type=raw,value=v1.0,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=ref,event=pr
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: agent
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

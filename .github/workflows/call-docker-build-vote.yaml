@@ -1,83 +1,75 @@
 name: Build Vote
- 
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-# template source: https://github.com/dockersamples/.github/blob/main/templates/call-docker-build.yaml
 
 on:
-  # we want pull requests so we can build(test) but not push to image registry
   push:
     branches:
       - 'main'
-    # only build when important files change
     paths:
       - 'vote/**'
       - '.github/workflows/call-docker-build-vote.yaml'
   pull_request:
     branches:
       - 'main'
-    # only build when important files change
     paths:
       - 'vote/**'
       - '.github/workflows/call-docker-build-vote.yaml'
 
 jobs:
-  call-docker-build:
-
-    name: Vote Call Docker Build
-
-    uses: dockersamples/.github/.github/workflows/reusable-docker-build.yaml@main
-
+  docker-build:
+    name: Vote Docker Build & Push
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # needed to push docker image to ghcr.io
-      pull-requests: write # needed to create and update comments in PRs
-    
-    secrets:
+      packages: write
+      pull-requests: write
 
-      # Only needed if with:dockerhub-enable is true below
-      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Only needed if with:dockerhub-enable is true below
-      dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    with:
-      
-      ### REQUIRED
-      ### ENABLE ONE OR BOTH REGISTRIES
-      ### tell docker where to push.
-      ### NOTE if Docker Hub is set to true, you must set secrets above and also add account/repo/tags below
-      dockerhub-enable: true
-      ghcr-enable: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      ### REQUIRED 
-      ### A list of the account/repo names for docker build. List should match what's enabled above
-      ### defaults to:
-      image-names: |
-        patracoder/examplevotingapp_vote
-        ghcr.io/${{ github.repository_owner }}/examplevotingapp_vote      
-      ### REQUIRED set rules for tagging images, based on special action syntax:
-      ### https://github.com/docker/metadata-action#tags-input
-      ### defaults to:
-      tag-rules: |
-        type=raw,value=v1.0,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-        type=ref,event=pr
-      
-      ### path to where docker should copy files into image
-      ### defaults to root of repository (.)
-      context: vote
-      
-      ### Dockerfile alternate name. Default is Dockerfile (relative to context path)
-      # file: Containerfile
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      ### build stage to target, defaults to empty, which builds to last stage in Dockerfile
-      # target:
-      
-      ### platforms to build for, defaults to linux/amd64
-      ### other options: linux/amd64,linux/arm64,linux/arm/v7
-      platforms: linux/amd64,linux/arm64,linux/arm/v7
-      
-      ### Create a PR comment with image tags and labels
-      ### defaults to false
-      # comment-enable: false
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            patracoder/examplevotingapp_vote
+            ghcr.io/${{ github.repository_owner }}/examplevotingapp_vote
+          tags: |
+            type=raw,value=v1.0,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=ref,event=pr
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: vote
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

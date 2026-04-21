@@ -58,7 +58,7 @@ paths = [
   '''external-secrets\.yaml'''
 ]
 regexes = [
-  '''change-me''',
+  '''(?i)change[_\-]?me''',
   '''your-.*-here''',
   '''<REPLACE>''',
   '''PLACEHOLDER''',

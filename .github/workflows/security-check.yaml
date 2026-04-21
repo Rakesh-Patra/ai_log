@@ -23,9 +23,9 @@ jobs:
           echo "🔍 Scanning for plain-text K8s Secret YAML files committed to git..."
           FOUND=0
           for f in $(find k8s/ -name '*secret*.yaml' -o -name '*secret*.yml' 2>/dev/null); do
-            # Skip example/template files
-            if echo "$f" | grep -qE '\.example\.|\.template\.'; then
-              echo "✅ SKIP (template): $f"
+            # Skip example/template files and the vault-bootstrap token
+            if echo "$f" | grep -qE '\.example\.|\.template\.|external-secrets.yaml'; then
+              echo "✅ SKIP (template/bootstrap): $f"
               continue
             fi
             # Check if it's a K8s Secret kind

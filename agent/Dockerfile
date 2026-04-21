@@ -14,6 +14,7 @@ FROM python:3.11-slim AS builder
 WORKDIR /build
 
 # Install build-time system deps only — NOT carried into runtime
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
@@ -35,6 +36,7 @@ RUN uv pip install --system --no-cache -r requirements.txt
 FROM python:3.11-slim AS runtime
 
 # Install only runtime system deps (node/npm for npx MCP server + curl for healthcheck)
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \

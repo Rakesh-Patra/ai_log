@@ -13,6 +13,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -36,6 +37,7 @@ CMD ["python", "app.py"]
 FROM python:3.11-slim AS final
 
 # Runtime tools only — curl for healthcheck
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     tini \

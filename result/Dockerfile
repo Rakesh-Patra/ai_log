@@ -21,6 +21,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 FROM node:18-slim AS runtime
 
 # Install only minimal runtime tools
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     tini \

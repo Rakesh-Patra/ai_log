@@ -1,0 +1,6 @@
+[allowlist]
+description = "Global ignore for false positives in DevSecOps repo"
+paths = [
+  '''agent/terraform/vault\.tf''',
+  '''k8s/external-secrets\.yaml'''
+]

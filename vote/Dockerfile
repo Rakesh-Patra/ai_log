@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
+# hadolint ignore=DL3013
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ── Stage 2: Dev (file-watching, only used locally) ──────────
@@ -27,6 +28,7 @@ FROM python:3.11-slim AS dev
 WORKDIR /usr/local/app
 COPY --from=builder /install /usr/local
 
+# hadolint ignore=DL3013
 RUN pip install --no-cache-dir watchdog
 ENV FLASK_ENV=development
 

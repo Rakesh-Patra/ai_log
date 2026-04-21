@@ -55,6 +55,7 @@ paths = [
   '''.*\.example\.yml''',
   '''testdata/''',
   '''__tests__/''',
+  '''external-secrets\.yaml'''
 ]
 regexes = [
   '''change-me''',

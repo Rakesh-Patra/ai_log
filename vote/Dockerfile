@@ -1,42 +1,68 @@
-# Define a base stage that uses the official python runtime base image
-FROM python:3.11-slim AS base
+# ════════════════════════════════════════════════════════════
+# Vote Dockerfile  — Hardened (Multi-Stage + Non-Root)
+# Steps applied:
+#   ✅ Step 2: Non-root user
+#   ✅ Step 3: .dockerignore
+#   ✅ Step 4: Multi-stage build (builder + dev + final)
+#   ✅ Step 5: Slim runtime (no pip in prod)
+#   ✅ Step 6: Healthcheck, read-only fs hints
+# ════════════════════════════════════════════════════════════
 
-# Add curl for healthcheck
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+# ── Stage 1: Builder — install dependencies ──────────────────
+FROM python:3.11-slim AS builder
 
-# Set the application directory
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ── Stage 2: Dev (file-watching, only used locally) ──────────
+FROM python:3.11-slim AS dev
+
 WORKDIR /usr/local/app
+COPY --from=builder /install /usr/local
 
-# Install our requirements.txt
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Define a stage specifically for development, where it'll watch for
-# filesystem changes
-FROM base AS dev
-RUN pip install watchdog
+RUN pip install --no-cache-dir watchdog
 ENV FLASK_ENV=development
+
+COPY . .
 CMD ["python", "app.py"]
 
-# Define the final stage that will bundle the application for production
-FROM base AS final
+# ── Stage 3: Production runtime ───────────────────────────────
+FROM python:3.11-slim AS final
 
-# Create a non-root user and group
+# Runtime tools only — curl for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    tini \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/local/app
+
+# Copy installed packages from builder (no pip in runtime)
+COPY --from=builder /install /usr/local
+
+# ── Step 2: Non-root user ─────────────────────────────────────
 RUN groupadd -r app && useradd -r -g app app
 
-# Copy our code from the current folder to the working directory inside the container
-COPY . .
+# Copy only application source
+COPY --chown=app:app . .
 
-# Set ownership to the non-root user
-RUN chown -R app:app /usr/local/app
+# ── Healthcheck ───────────────────────────────────────────────
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
-# Switch to the non-root user
 USER app
 
-# Make port 80 available for links and/or publish
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 EXPOSE 80
 
-# Define our command to be run when launching the container
+# tini as PID 1
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["gunicorn", "app:app", "-b", "0.0.0.0:80", "--log-file", "-", "--access-logfile", "-", "--workers", "4", "--keep-alive", "0"]

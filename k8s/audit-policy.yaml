@@ -1,0 +1,82 @@
+# Gap 2 CLOSED: Kubernetes API Audit Policy
+# Logs all security-relevant API calls with appropriate verbosity.
+#
+# Levels:
+#   None     — do not log
+#   Metadata — log metadata only (user, verb, resource) — no body
+#   Request  — log metadata + request body
+#   RequestResponse — log everything (verbose, use sparingly)
+
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+  # ── Never log these (too noisy, no security value) ───────────
+  - level: None
+    users: ["system:kube-proxy"]
+    verbs: ["watch"]
+    resources:
+      - group: ""
+        resources: ["endpoints", "services", "services/status"]
+
+  - level: None
+    users: ["kubelet"]
+    verbs: ["get"]
+    resources:
+      - group: ""
+        resources: ["nodes", "nodes/status"]
+
+  - level: None
+    nonResourceURLs:
+      - /healthz*
+      - /readyz*
+      - /livez*
+      - /metrics
+      - /swagger*
+      - /openapi*
+
+  # ── Log secret access at Request level (captures who read them)
+  - level: Request
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    resources:
+      - group: ""
+        resources: ["secrets", "configmaps", "serviceaccounts"]
+
+  # ── Log RBAC changes at RequestResponse (full audit trail) ───
+  - level: RequestResponse
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: "rbac.authorization.k8s.io"
+        resources:
+          - roles
+          - clusterroles
+          - rolebindings
+          - clusterrolebindings
+
+  # ── Log all pod exec/attach/portforward (critical for security)
+  - level: RequestResponse
+    resources:
+      - group: ""
+        resources: ["pods/exec", "pods/attach", "pods/portforward"]
+
+  # ── Log all deployment/statefulset mutations ──────────────────
+  - level: Request
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: "apps"
+        resources:
+          - deployments
+          - statefulsets
+          - daemonsets
+          - replicasets
+
+  # ── Log Kyverno policy changes ────────────────────────────────
+  - level: RequestResponse
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: "kyverno.io"
+        resources: ["*"]
+
+  # ── Default: metadata only for everything else ────────────────
+  - level: Metadata
+    omitStages:
+      - RequestReceived

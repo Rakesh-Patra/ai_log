@@ -251,3 +251,32 @@ jobs:
             fi
           done
           echo "✅ Dockerfile scan complete."
+
+  # ─────────────────────────────────────────────────
+  # 5. IaC Security Scan — Checkov (Terraform + K8s)
+  # ─────────────────────────────────────────────────
+  iac-scan:
+    name: "\U0001F3D7 IaC Security Scan (Checkov)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "\U0001F3D7 Checkov scan — Kubernetes manifests"
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: k8s/
+          framework: kubernetes
+          soft_fail: true          # warn only — some checks differ per env
+          output_format: cli
+          skip_check: CKV_K8S_43  # image digest pinning (uses tags intentionally)
+
+      - name: "\U0001F3D7 Checkov scan — Terraform (agent)"
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: agent/terraform/
+          framework: terraform
+          soft_fail: false
+          output_format: cli
+          skip_check: CKV_AWS_39,CKV_AWS_58  # Public EKS endpoint (intentional for dev)
+        continue-on-error: true   # Terraform dir may not exist in all branches
+

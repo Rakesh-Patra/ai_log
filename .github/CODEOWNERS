@@ -1,0 +1,30 @@
+# CODEOWNERS — Mandatory reviewers for sensitive paths
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Format: <path pattern>  @<github-username-or-team>
+# Last matching rule wins.
+# ════════════════════════════════════════════════════════════════
+
+# ── Default: every change needs at least 1 review ────────────
+*                           @patracoder
+
+# ── CI/CD & Security Workflows ───────────────────────────────
+/.github/                   @patracoder
+/.github/workflows/         @patracoder
+
+# ── Infrastructure (Terraform, K8s manifests) ────────────────
+/k8s/                       @patracoder
+/agent/terraform/           @patracoder
+
+# ── Secrets & Auth configuration ─────────────────────────────
+/.gitignore                 @patracoder
+/.pre-commit-config.yaml    @patracoder
+/custom-rules.toml          @patracoder
+/agent/.env.example         @patracoder
+
+# ── AI Agent core logic ───────────────────────────────────────
+/agent/app/core/            @patracoder
+/agent/mcp_server.py        @patracoder
+
+# ── Docker build files ────────────────────────────────────────
+**/Dockerfile               @patracoder

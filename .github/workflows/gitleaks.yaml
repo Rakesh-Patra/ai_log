@@ -1,0 +1,36 @@
+name: "\U0001F512 Gitleaks Secret Scan"
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+  workflow_dispatch:
+
+jobs:
+  scan:
+    name: "\U0001F512 Gitleaks — full history & diff scan"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Required for history scanning
+
+      - name: "\U0001F512 Run Gitleaks (default rules)"
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Only needed for GitHub Org
+
+      - name: "\U0001F512 Run Gitleaks (custom project rules)"
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --config custom-rules.toml --source . --log-opts="HEAD~1..HEAD"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false

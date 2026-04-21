@@ -1,0 +1,30 @@
+repos:
+  # ── Gitleaks: block secrets in every commit ───────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+        name: "\U0001F512 Gitleaks — detect hardcoded secrets"
+
+  # ── Detect private keys & common secret patterns ─────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: detect-private-key
+        name: "\U0001F512 Detect private key files"
+      - id: check-added-large-files
+        name: "\U0001F4C2 Block large files (>500KB)"
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+        name: "\u26A0 Check for merge conflict markers"
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # ── YAML / JSON lint (catch config errors early) ─────────────
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        name: "\U0001F4CB Lint YAML files"
+        args: ["-d", "{extends: relaxed, rules: {line-length: {max: 160}}}"]
+        types: [yaml]

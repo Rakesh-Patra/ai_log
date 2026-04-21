@@ -196,7 +196,7 @@ SYSTEM_PROMPT = f"{_BASE_PROMPT}\n\n{_all_skills}" if _all_skills else _BASE_PRO
 def get_model() -> ChatGoogleGenerativeAI:
     """
     Create the LLM instance.
-    Model is NOT changed – uses the same gemini-3-flash-preview.
+    Model name is pulled from settings (e.g. gemini-2.5-flash-lite).
     """
     settings = get_settings()
 

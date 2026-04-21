@@ -4,6 +4,7 @@ metadata:
   labels:
     app: worker
   name: worker
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -13,22 +14,25 @@ spec:
     metadata:
       labels:
         app: worker
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "app-role"
-        vault.hashicorp.com/agent-inject-secret-db-credentials: "secret/data/db-credentials"
-        vault.hashicorp.com/agent-inject-template-db-credentials: |
-          {{- with secret "secret/data/db-credentials" -}}
-          export POSTGRES_USER="{{ .Data.data.username }}"
-          export POSTGRES_PASSWORD="{{ .Data.data.password }}"
-          {{- end -}}
     spec:
-      serviceAccountName: voting-app
+      serviceAccountName: worker-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - image: dockersamples/examplevotingapp_worker:latest
+      - image: patracoder/examplevotingapp_worker:v1.0
         name: worker
         command: ["/bin/sh", "-c"]
-        args: [". /vault/secrets/db-credentials && dotnet Worker.dll"]
+        args: ["dotnet Worker.dll"]
+        envFrom:
+        - secretRef:
+            name: db-secret
+        - secretRef:
+            name: redis-secret
         resources:
           requests:
             cpu: 100m
@@ -38,3 +42,14 @@ spec:
             memory: 256Mi
         securityContext:
           allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 10001
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
+      volumes:
+      - name: tmp-dir
+        emptyDir: {}

@@ -4,6 +4,7 @@ metadata:
   labels:
     app: db
   name: db
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -13,41 +14,44 @@ spec:
     metadata:
       labels:
         app: db
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "app-role"
-        vault.hashicorp.com/agent-inject-secret-db-credentials: "secret/data/db-credentials"
-        vault.hashicorp.com/agent-inject-template-db-credentials: |
-          {{- with secret "secret/data/db-credentials" -}}
-          export POSTGRES_USER="{{ .Data.data.username }}"
-          export POSTGRES_PASSWORD="{{ .Data.data.password }}"
-          {{- end -}}
     spec:
+      serviceAccountName: db-sa
       securityContext:
-        fsGroup: 999
-      serviceAccountName: voting-app
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - image: postgres:15-alpine
+      - image: postgres:15.6-alpine
         name: postgres
         command: ["/bin/sh", "-c"]
-        args: ["source /vault/secrets/db-credentials && docker-entrypoint.sh postgres"]
+        args: ["docker-entrypoint.sh postgres"]
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata4
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: "trust"
+        envFrom:
+        - secretRef:
+            name: db-secret
         ports:
         - containerPort: 5432
           name: postgres
         resources:
           requests:
             cpu: 100m
-            memory: 128Mi
+            memory: 256Mi
           limits:
             cpu: 500m
             memory: 512Mi
         securityContext:
           allowPrivilegeEscalation: false
-        volumeMounts:
-        - mountPath: /var/lib/postgresql/data
-          name: db-data
-      volumes:
-      - name: db-data
-        persistentVolumeClaim:
-          claimName: db-data-pvc
+          runAsNonRoot: true
+          runAsUser: 70
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
 

@@ -1,0 +1,79 @@
+# ════════════════════════════════════════════════════════════
+# Gap 3 CLOSED: Pod Security Admission (PSA)
+# Enforces Kubernetes built-in security standards at the
+# namespace level — no admission controller needed.
+#
+# Modes:
+#   enforce — rejects violating pods
+#   audit   — allows but logs violations
+#   warn    — allows but shows warnings
+#
+# Levels:
+#   privileged — no restrictions (system namespaces)
+#   baseline   — prevents known privilege escalations
+#   restricted — full hardening (runs as non-root, no caps, etc.)
+#
+# Apply: kubectl apply -f k8s/namespaces.yaml
+# Verify: kubectl label ns default --list | grep pod-security
+# ════════════════════════════════════════════════════════════
+
+# ── App namespace: restricted enforcement ─────────────────────
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: voting-app
+  labels:
+    team: platform
+    env: production
+    security: high
+    # Gap 3: PSA — enforce restricted profile
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+
+# ── Monitoring namespace: baseline (Prometheus needs some caps)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: voting-monitoring
+  labels:
+    team: platform
+    env: production
+    security: standard
+    # baseline allows Prometheus node-exporter (needs host network)
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+
+# ── AI Agent namespace: restricted (agent runs as non-root) ───
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: voting-agent
+  labels:
+    team: ai
+    env: production
+    security: high
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+
+# ── Default namespace: baseline (existing workloads) ──────────
+---
+# Note: labeling 'default' namespace requires:
+#   kubectl label namespace default \
+#     pod-security.kubernetes.io/enforce=baseline \
+#     pod-security.kubernetes.io/warn=restricted
+# Done via kubectl (not declarative manifest for default NS)

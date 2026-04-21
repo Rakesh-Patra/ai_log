@@ -4,6 +4,7 @@ metadata:
   labels:
     app: result
   name: result
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -13,24 +14,28 @@ spec:
     metadata:
       labels:
         app: result
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "app-role"
-        vault.hashicorp.com/agent-inject-secret-db-credentials: "secret/data/db-credentials"
-        vault.hashicorp.com/agent-inject-template-db-credentials: |
-          {{- with secret "secret/data/db-credentials" -}}
-          export POSTGRES_USER="{{ .Data.data.username }}"
-          export POSTGRES_PASSWORD="{{ .Data.data.password }}"
-          {{- end -}}
     spec:
-      serviceAccountName: voting-app
+      serviceAccountName: result-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - image: dockersamples/examplevotingapp_result:latest
+      - image: patracoder/examplevotingapp_result:v1.0
         name: result
         command: ["/bin/sh", "-c"]
-        args: [". /vault/secrets/db-credentials && nodemon server.js"]
+        args: ["node server.js"]
+        env:
+        - name: PORT
+          value: "8080"
+        envFrom:
+        - secretRef:
+            name: db-secret
         ports:
-        - containerPort: 80
+        - containerPort: 8080
           name: result
         resources:
           requests:
@@ -41,3 +46,14 @@ spec:
             memory: 256Mi
         securityContext:
           allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
+      volumes:
+      - name: tmp-dir
+        emptyDir: {}

@@ -9,7 +9,7 @@ from app.utils.logging import get_logger
 logger = get_logger(__name__)
 temporal_client: Client = None
 
-_MAX_CONNECT_ATTEMPTS = 15
+_MAX_CONNECT_ATTEMPTS = 1
 
 
 async def get_temporal_client() -> Client:

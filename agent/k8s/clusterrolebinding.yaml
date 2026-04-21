@@ -5,7 +5,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: ai-sre-agent
-  namespace: default
+  namespace: voting-agent
 roleRef:
   kind: ClusterRole
   name: ai-sre-role

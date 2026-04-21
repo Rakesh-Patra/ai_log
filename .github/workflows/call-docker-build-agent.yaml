@@ -25,6 +25,8 @@ jobs:
       contents: read
       packages: write
       pull-requests: write
+      security-events: write
+      id-token: write   # Gap 1: Required for Cosign keyless signing via OIDC
 
     steps:
       - name: Checkout code
@@ -35,6 +37,21 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      # ── Security: Lint Dockerfile ───────────────────────────────
+      - name: "📋 Lint Dockerfile (Hadolint)"
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: agent/Dockerfile
+          failure-threshold: warning
+
+      # ── Security: Python dependency audit (SCA) ─────────────────
+      - name: "🛡 Python dependency audit (pip-audit)"
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: agent/requirements.txt
+          vulnerability-service: osv
+        continue-on-error: true
 
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
@@ -64,6 +81,7 @@ jobs:
             type=ref,event=pr
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: agent
@@ -73,3 +91,33 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # ── Security: CVE scan ──────────────────────────────────────
+      - name: "🔍 Build local image for Trivy scan"
+        run: docker build -t agent:scan ./agent
+
+      - name: "🔍 Scan image for CVEs (Trivy)"
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: agent:scan
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          timeout: 10m
+
+      # ── Gap 1 CLOSED: Cosign keyless image signing ──────────────
+      - name: "🔏 Install Cosign"
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: "🔏 Sign images with Cosign (keyless OIDC)"
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
+            echo "Signing: $tag"
+            cosign sign --yes "$tag@${{ steps.build.outputs.digest }}"
+          done

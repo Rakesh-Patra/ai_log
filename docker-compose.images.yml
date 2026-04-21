@@ -93,6 +93,8 @@ services:
 
   temporal:
     image: temporalio/auto-setup:1.22.4
+    ports:
+      - "7233:7233"
     env_file:
       - ./agent/.env
     environment:

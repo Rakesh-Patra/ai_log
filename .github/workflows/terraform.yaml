@@ -59,7 +59,7 @@ jobs:
     name: "\U0001F3D7 Terraform ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'Apply' || 'Plan' }}"
     runs-on: ubuntu-latest
     needs: checkov-scan
-    if: env.VAULT_ADDR != ''
+    needs: checkov-scan
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -73,7 +73,8 @@ jobs:
           terraform_version: "~1.6"
 
       # ── Fetch dynamic AWS credentials from Vault via OIDC ──
-      - name: "\U0001F512 Fetch AWS Credentials from Vault"
+      - name: "🔒 Fetch AWS Credentials from Vault"
+        if: env.VAULT_ADDR != ''
         uses: hashicorp/vault-action@v3
         id: vault
         with:
@@ -86,6 +87,7 @@ jobs:
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY
 
       - name: Set AWS credentials as env vars
+        if: env.VAULT_ADDR != ''
         run: |
           echo "AWS_ACCESS_KEY_ID=${{ steps.vault.outputs.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ steps.vault.outputs.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
@@ -93,15 +95,19 @@ jobs:
 
       # ── Terraform workflow ─────────────────────────────────
       - name: Terraform Init
+        if: env.VAULT_ADDR != ''
         run: terraform init -input=false
 
       - name: Terraform Format Check
+        if: env.VAULT_ADDR != ''
         run: terraform fmt -check -recursive
 
       - name: Terraform Validate
+        if: env.VAULT_ADDR != ''
         run: terraform validate
 
       - name: Terraform Plan
+        if: env.VAULT_ADDR != ''
         id: plan
         run: terraform plan -input=false -out=tfplan
         env:
@@ -109,7 +115,7 @@ jobs:
 
       # ── PR: post plan as a comment ─────────────────────────
       - name: Post plan to PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && env.VAULT_ADDR != ''
         uses: actions/github-script@v7
         with:
           script: |
@@ -125,12 +131,12 @@ jobs:
 
       # ── main push only: apply ──────────────────────────────
       - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.VAULT_ADDR != ''
         run: terraform apply -auto-approve tfplan
 
       # ── Security: revoke Vault lease after use ─────────────
       - name: Revoke Vault AWS credentials
-        if: always()
+        if: always() && env.VAULT_ADDR != ''
         run: |
           curl -s -X PUT "${{ env.VAULT_ADDR }}/v1/sys/leases/revoke-self" \
             -H "X-Vault-Token: ${{ steps.vault.outputs.VAULT_TOKEN }}" || true

@@ -59,6 +59,7 @@ jobs:
     name: "\U0001F3D7 Terraform ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'Apply' || 'Plan' }}"
     runs-on: ubuntu-latest
     needs: checkov-scan
+    if: env.VAULT_ADDR != ''
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}

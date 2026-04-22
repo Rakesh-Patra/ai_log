@@ -110,9 +110,7 @@ resource "vault_kv_secret_v2" "db_credentials_placeholder" {
   data_json = jsonencode({
     # ⚠️ PLACEHOLDER — override immediately after apply:
     #   vault kv put secret/db-credentials username=admin password=REAL_PASSWORD
-    username = "REMOVED"
-    password = "REMOVED"
-    host     = "db.default.svc.cluster.local"
+    host = "db.default.svc.cluster.local"
   })
 
   lifecycle {

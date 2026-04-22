@@ -1,0 +1,65 @@
+# Gitleaks custom rules for this project
+# Run: gitleaks detect --config custom-rules.toml
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+title = "k8s-voting-app Gitleaks Config"
+
+# ── Extend the default ruleset ────────────────────────────────
+[extend]
+useDefault = true
+
+# ── Custom Rules ─────────────────────────────────────────────
+
+[[rules]]
+id = "generic-password-assignment"
+description = "Detect PASSWORD= or password= assignments with literal values"
+regex = '''(?i)password\s*[=:]\s*["'][^"'\s]{4,}["']'''
+tags = ["password", "custom"]
+
+[[rules]]
+id = "generic-api-key"
+description = "Variables named *_API_KEY with a non-placeholder value"
+regex = '''(?i)[a-z0-9_]*api[_\-]?key\s*[=:]\s*["']?[a-zA-Z0-9\-_]{16,}["']?'''
+tags = ["api-key", "custom"]
+[rules.allowlist]
+  regexes = [
+    '''(?i)your[_\-]?api[_\-]?key''',
+    '''(?i)<api[_\-]?key>''',
+    '''(?i)change[_\-]?me''',
+  ]
+
+[[rules]]
+id = "kubernetes-secret-base64"
+description = "Base64-encoded value in a Kubernetes Secret manifest"
+regex = '''kind:\s*Secret[\s\S]{0,500}data:\s*[\s\S]{0,200}:\s+[A-Za-z0-9+/]{20,}={0,2}'''
+tags = ["kubernetes", "secret"]
+
+[[rules]]
+id = "postgres-connection-string"
+description = "PostgreSQL connection string with embedded credentials"
+regex = '''postgres(?:ql)?://[^:]+:[^@]{4,}@'''
+tags = ["database", "postgres"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google API Key (project-specific pattern)"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+tags = ["google", "api-key"]
+
+# ── Global Allowlist ──────────────────────────────────────────
+[allowlist]
+description = "Exclude test fixtures, examples, and CI placeholders"
+paths = [
+  '''.env\.example''',
+  '''.*\.example\.yaml''',
+  '''.*\.example\.yml''',
+  '''testdata/''',
+  '''__tests__/''',
+  '''external-secrets\.yaml'''
+]
+regexes = [
+  '''(?i)change[_\-]?me''',
+  '''your-.*-here''',
+  '''<REPLACE>''',
+  '''PLACEHOLDER''',
+]

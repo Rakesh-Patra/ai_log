@@ -1,0 +1,180 @@
+# ════════════════════════════════════════════════════════════
+# Section 4: Kyverno — Policy as Code
+# Enforces security standards on every resource applied.
+#
+# Install first:
+#   kubectl apply --server-side \
+#     -f https://github.com/kyverno/kyverno/releases/latest/download/install.yaml
+#
+# Apply: kubectl apply -f k8s/kyverno-policies.yaml
+# Test:
+#   kubectl run bad  --image=nginx:latest  -n default  # should FAIL
+#   kubectl run good --image=nginx:1.25.3 -n default  # should PASS
+# ════════════════════════════════════════════════════════════
+
+# ── Policy 1: Disallow :latest image tag ─────────────────────
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >
+      Using 'latest' is non-deterministic — the image pulled today may differ
+      from tomorrow. Require explicit, pinned image tags.
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: require-image-tag
+    match:
+      resources:
+        kinds: [Pod]
+    validate:
+      message: "Image tag ':latest' or untagged images are not allowed. Use an explicit version tag."
+      pattern:
+        spec:
+          containers:
+          - image: "!*:latest | !*:*latest* | ?*:?*"
+          initContainers:
+          - image: "!*:latest | !*:*latest* | ?*:?*"
+
+# ── Policy 2: Require non-root containers ────────────────────
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root
+  annotations:
+    policies.kyverno.io/title: Require Non-Root Containers
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >
+      Containers running as root (UID 0) are dangerous.
+      Require runAsNonRoot: true in all pods.
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: check-runAsNonRoot
+    match:
+      resources:
+        kinds: [Pod]
+    validate:
+      message: "Containers must set securityContext.runAsNonRoot: true"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              runAsNonRoot: true
+
+# ── Policy 3: Disallow privilege escalation ───────────────────
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow Privilege Escalation
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: check-allowPrivilegeEscalation
+    match:
+      resources:
+        kinds: [Pod]
+    validate:
+      message: "allowPrivilegeEscalation must be false"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              allowPrivilegeEscalation: false
+
+# ── Policy 4: Require resource limits ────────────────────────
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: check-resource-limits
+    match:
+      resources:
+        kinds: [Pod]
+    validate:
+      message: "All containers must have CPU and memory limits defined."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              limits:
+                memory: "?*"
+                cpu: "?*"
+
+# ── Policy 5: Disallow privileged containers ─────────────────
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Disallow Privileged Containers
+    policies.kyverno.io/severity: critical
+spec:
+  validationFailureAction: Enforce
+  rules:
+  - name: check-privileged
+    match:
+      resources:
+        kinds: [Pod]
+    validate:
+      message: "Privileged containers are not allowed."
+      pattern:
+        spec:
+          containers:
+          - =(securityContext):
+              =(privileged): false
+
+# ── Policy 7: Image Signature Verification (Cosign) ──────────
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >
+      Ensures that all images are signed by the trusted GitHub Actions CI/CD.
+      Protects against tampered or rogue images.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: verify-sigstore-signature
+      match:
+        any:
+        - resources:
+            namespaces: ["voting-app", "voting-agent"]   # High-security NS only
+            kinds: [Pod]
+      verifyImages:
+        - imageReferences:
+            - "patracoder/*"
+            - "ghcr.io/patracoder/*"
+          attestors:
+            - entries:
+              - keyless:
+                  issuer: "https://token.actions.githubusercontent.com"
+                  subject: "https://github.com/patracoder/k8s-kind-voting-app/.github/workflows/call-docker-build-*.yaml@refs/heads/main"
+          # Only allow the original identity that signed it
+          mutateDigest: true
+          verifyDigest: true
+          required: true

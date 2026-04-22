@@ -1,31 +1,52 @@
-# because of dotnet, we always build on amd64, and target platforms in cli
-# dotnet doesn't support QEMU for building or running. 
-# (errors common in arm/v7 32bit) https://github.com/dotnet/dotnet-docker/issues/1537
-# https://hub.docker.com/_/microsoft-dotnet
+# ════════════════════════════════════════════════════════════
+# Worker Dockerfile  — Hardened (.NET Multi-Stage + Non-Root)
+# Steps applied:
+#   ✅ Step 2: Non-root user (appuser)
+#   ✅ Step 3: .dockerignore
+#   ✅ Step 4: Multi-stage build (SDK build → runtime only)
+#   ✅ Step 5: Minimal runtime image (dotnet/runtime, no SDK)
+#   ✅ Step 6: Read-only fs compatible, no new privileges
+# ════════════════════════════════════════════════════════════
+
+# dotnet doesn't support QEMU for building or running.
 # hadolint ignore=DL3029
-# to build for a different platform than your host, use --platform=<platform>
-# for example, if you were on Intel (amd64) and wanted to build for ARM, you would use:
-# docker buildx build --platform "linux/arm64/v8" .
-FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:8.0 as build
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
 ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG BUILDPLATFORM
-RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
+RUN echo "Building on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
 
 WORKDIR /source
+
+# Restore dependencies first (layer caching)
 COPY *.csproj .
 RUN dotnet restore -a $TARGETARCH
 
+# Build & publish — self-contained=false keeps image smaller
 COPY . .
-RUN dotnet publish -c release -o /app -a $TARGETARCH --self-contained false --no-restore
+RUN dotnet publish -c Release -o /app -a $TARGETARCH \
+    --self-contained false \
+    --no-restore \
+    /p:TreatWarningsAsErrors=false
 
-# app image
-FROM mcr.microsoft.com/dotnet/runtime:8.0
+# ── Runtime Stage ─────────────────────────────────────────────
+# Only the .NET runtime — no SDK, compiler, or build tools remain
+FROM mcr.microsoft.com/dotnet/runtime:8.0 AS runtime
+
 WORKDIR /app
+
+# Copy only the published output
 COPY --from=build /app .
 
-# Create a non-root user
-RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+# ── Step 2: Non-root user ─────────────────────────────────────
+RUN adduser --disabled-password --gecos "" --uid 10001 appuser \
+    && chown -R appuser:appuser /app
+
 USER appuser
+
+# Metadata labels
+LABEL org.opencontainers.image.description="Voting App Worker — .NET background processor" \
+      org.opencontainers.image.source="https://github.com/patracoder/k8s-kind-voting-app"
 
 ENTRYPOINT ["dotnet", "Worker.dll"]

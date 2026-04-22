@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-pdb
+  namespace: voting-agent
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: agent   # Matches labels in agent/k8s/deployment.yaml

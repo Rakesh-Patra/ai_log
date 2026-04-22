@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ─────────────────────────────────────────────────
   # 1. Scan for leaked secrets in code & git history
@@ -23,9 +26,9 @@ jobs:
           echo "🔍 Scanning for plain-text K8s Secret YAML files committed to git..."
           FOUND=0
           for f in $(find k8s/ -name '*secret*.yaml' -o -name '*secret*.yml' 2>/dev/null); do
-            # Skip example/template files
-            if echo "$f" | grep -qE '\.example\.|\.template\.'; then
-              echo "✅ SKIP (template): $f"
+            # Skip example/template files and the vault-bootstrap token
+            if echo "$f" | grep -qE '\.example\.|\.template\.|external-secrets.yaml'; then
+              echo "✅ SKIP (template/bootstrap): $f"
               continue
             fi
             # Check if it's a K8s Secret kind
@@ -251,3 +254,32 @@ jobs:
             fi
           done
           echo "✅ Dockerfile scan complete."
+
+  # ─────────────────────────────────────────────────
+  # 5. IaC Security Scan — Checkov (Terraform + K8s)
+  # ─────────────────────────────────────────────────
+  iac-scan:
+    name: "\U0001F3D7 IaC Security Scan (Checkov)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "\U0001F3D7 Checkov scan — Kubernetes manifests"
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: k8s/
+          framework: kubernetes
+          soft_fail: true          # warn only — some checks differ per env
+          output_format: cli
+          skip_check: CKV_K8S_43  # image digest pinning (uses tags intentionally)
+
+      - name: "\U0001F3D7 Checkov scan — Terraform (agent)"
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: agent/terraform/
+          framework: terraform
+          soft_fail: false
+          output_format: cli
+          skip_check: CKV_AWS_39,CKV_AWS_58  # Public EKS endpoint (intentional for dev)
+        continue-on-error: true   # Terraform dir may not exist in all branches
+

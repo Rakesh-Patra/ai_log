@@ -1,0 +1,30 @@
+# CODEOWNERS — Mandatory reviewers for sensitive paths
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Format: <path pattern>  @<github-username-or-team>
+# Last matching rule wins.
+# ════════════════════════════════════════════════════════════════
+
+# ── Default: every change needs at least 1 review ────────────
+*                           @Rakesh-Patra
+
+# ── CI/CD & Security Workflows ───────────────────────────────
+/.github/                   @Rakesh-Patra
+/.github/workflows/         @Rakesh-Patra
+
+# ── Infrastructure (Terraform, K8s manifests) ────────────────
+/k8s/                       @Rakesh-Patra
+/agent/terraform/           @Rakesh-Patra
+
+# ── Secrets & Auth configuration ─────────────────────────────
+/.gitignore                 @Rakesh-Patra
+/.pre-commit-config.yaml    @Rakesh-Patra
+/.gitleaks.toml             @Rakesh-Patra
+/agent/.env.example         @Rakesh-Patra
+
+# ── AI Agent core logic ───────────────────────────────────────
+/agent/app/core/            @Rakesh-Patra
+/agent/mcp_server.py        @Rakesh-Patra
+
+# ── Docker build files ────────────────────────────────────────
+**/Dockerfile               @Rakesh-Patra

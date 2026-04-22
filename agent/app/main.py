@@ -43,15 +43,15 @@ async def lifespan(app: FastAPI):
         debug=settings.debug,
     )
 
-    # ✅ Connect Temporal client
-    try:
-        # We don't need to store the result here, as get_temporal_client() 
-        # manages the singleton instance.
-        # Align with get_temporal_client() backoff (~2 min worst case).
-        await asyncio.wait_for(get_temporal_client(), timeout=150)
-        logger.info("temporal_connected")
-    except Exception as e:
-        logger.warning("temporal_not_available", error=str(e))
+    # 🟢 Connect Temporal client (Non-blocking for fast startup)
+    async def connect_temporal():
+        try:
+            await asyncio.wait_for(get_temporal_client(), timeout=10)
+            logger.info("temporal_connected")
+        except Exception as e:
+            logger.warning("temporal_not_available", error=str(e))
+
+    asyncio.create_task(connect_temporal())
 
     yield
 

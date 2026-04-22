@@ -1,0 +1,134 @@
+# ════════════════════════════════════════════════════════════
+# Gaps 4 & 5 CLOSED: HPA + PodDisruptionBudget
+#
+# HPA: Auto-scales vote and result under load (DoS resilience)
+# PDB: Ensures minimum availability during node drains/upgrades
+#
+# Apply: kubectl apply -f k8s/hpa-pdb.yaml
+# Verify:
+#   kubectl get hpa
+#   kubectl get pdb
+# ════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────
+# HPA: vote service (internet-facing, most likely to spike)
+# ─────────────────────────────────────────────────────────────
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vote-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vote
+  minReplicas: 2    # Always at least 2 for HA
+  maxReplicas: 10   # Cap prevents runaway cost + node exhaustion
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70   # Scale up at 70% CPU
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60    # Wait 60s before scaling up
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60             # Add max 2 pods per minute
+    scaleDown:
+      stabilizationWindowSeconds: 300   # Wait 5 min before scaling down
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60             # Remove max 1 pod per minute
+
+# ─────────────────────────────────────────────────────────────
+# HPA: result service
+# ─────────────────────────────────────────────────────────────
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: result-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: result
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+# ─────────────────────────────────────────────────────────────
+# PDB: vote — always at least 1 available during disruptions
+# ─────────────────────────────────────────────────────────────
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vote-pdb
+  namespace: default
+spec:
+  minAvailable: 1   # At least 1 pod must stay running
+  selector:
+    matchLabels:
+      app: vote
+
+# ─────────────────────────────────────────────────────────────
+# PDB: result
+# ─────────────────────────────────────────────────────────────
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: result-pdb
+  namespace: default
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: result
+
+# ─────────────────────────────────────────────────────────────
+# PDB: worker — must have 1 running to avoid vote data loss
+# ─────────────────────────────────────────────────────────────
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-pdb
+  namespace: default
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: worker
+
+  selector:
+    matchLabels:
+      app: worker

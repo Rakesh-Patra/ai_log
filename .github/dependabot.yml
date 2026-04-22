@@ -1,7 +1,45 @@
 version: 2
 updates:
-  # Maintain dependencies for GitHub Actions
+  # ── GitHub Actions (CI/CD workflows) ─────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+
+  # ── Python (agent/requirements.txt) ──────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/agent"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    ignore:
+      # Pin major versions of LangChain ecosystem manually
+      - dependency-name: "langchain*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "langgraph"
+        update-types: ["version-update:semver-major"]
+
+  # ── Node.js (result service) ─────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/result"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "nodejs"
+      - "security"
+
+  # ── Docker images in Compose files ──────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
       interval: "monthly"
+    labels:
+      - "dependencies"
+      - "docker"

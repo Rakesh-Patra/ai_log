@@ -1,8 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agent
-  namespace: default
+  name: ai-sre-agent
+  namespace: voting-agent
   labels:
     app: agent
 spec:
@@ -16,11 +16,19 @@ spec:
         app: agent
     spec:
       serviceAccountName: ai-sre-agent
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: agent
         image: patracoder/k8s-ai-agent:v1.0
         ports:
         - containerPort: 8000
+          name: http
         env:
         - name: GOOGLE_API_KEY
           valueFrom:
@@ -37,8 +45,28 @@ spec:
           value: "" # Empty tells the SDK to use in-cluster config
         resources:
           requests:
-            cpu: "100m"
-            memory: "256Mi"
+            cpu: 200m     # Upped from 100m for better AI performance
+            memory: 256Mi
           limits:
-            cpu: "500m"
-            memory: "512Mi"
+            cpu: 1000m    # Upped from 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false   # Agent needs to write to its local db/logs
+          capabilities:
+            drop: ["ALL"]
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 15
+

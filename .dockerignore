@@ -1,21 +1,36 @@
-# Version control
+# ════════════════════════════════════════════════════════════
+# .dockerignore — Step 3: What Goes Into The Image
+# Prevents secrets, junk, and dev artifacts from leaking in
+# ════════════════════════════════════════════════════════════
+
+# ── Version control ───────────────────────────────────────────
 .git
 .github
 .gitignore
+*.md
+!README.md
 
-# IDEs and Editors
+# ── Secrets — CRITICAL ────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+id_rsa
+id_rsa.*
+kubeconfig
+kubeconfig_agent/
+terraform.tfstate*
+*.tfvars
+
+# ── IDE / Editor ──────────────────────────────────────────────
 .vscode
 .idea
 .cursor
 .windsurf
 .trae
 .zed
-.project
-.settings
-.classpath
-.factorypath
 
-# AI Tooling and Agent Caches
+# ── AI tooling caches ─────────────────────────────────────────
 .gemini
 .insforge
 .agent
@@ -26,42 +41,54 @@
 .qoder
 .qwen
 .roo
-.trae
 
-# Python
-venv
-.venv
-env
-.env
-__pycache__
+# ── Python ────────────────────────────────────────────────────
+venv/
+venv_win/
+.venv/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache
-.ruff_cache
-.mypy_cache
-.tox
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
 
-# Node.js
-node_modules
+# ── Node.js ───────────────────────────────────────────────────
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.npm
+.npm/
 
-# Logs and Temp
+# ── .NET ──────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+
+# ── Logs and temp ─────────────────────────────────────────────
 *.log
 *.tmp
 *.bak
 dump.rdb
-
-# App specific
-kubeconfig_agent
+agent_temp_logs.txt
+vault-logs.txt
 server_startup.log
 full_server_log.txt
-final_result.json
-final_result_ok.json
-test_output.txt
 uvicorn_debug.log
-worker_error.txt
+debug_out.log
 curl_result.txt
+final_result.json
+test_output.txt
+worker_error.txt
+
+# ── Test and CI files ─────────────────────────────────────────
+tests/
+test_*.py
+*_test.py
+Dockerfile*
+docker-compose*.yml
+.pre-commit-config.yaml
+custom-rules.toml
+setup-hooks.sh

@@ -1,32 +1,111 @@
-# Secrets — never commit real credentials
+# ════════════════════════════════════════════════════════
+# .gitignore — First Line of Defense
+# ════════════════════════════════════════════════════════
+
+# ── Secrets & Credentials ────────────────────────────────
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.crt
+*.cert
+*.ca-bundle
 
-# Kubernetes secrets (real values) — only templates belong in git
+# ── Kubernetes secrets (real values only — templates belong in git) ──
 k8s/db-secret.yaml
 k8s/redis-secret.yaml
+k8s/reviewer-secret.yaml
+k8s/encryption-config.yaml
 !k8s/*-secret.example.yaml
+kubeconfig
+kubeconfig_agent/
+!kubeconfig_agent.example
 
+# ── Terraform (state contains secrets — never commit) ────
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ── Terraform ────────────────────────────────────────────
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.*.backup
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# ── Node / JS ─────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
 *.pyc
-project.lock.json
+*.pyo
+*.pyd
+.Python
+venv/
+venv_win/
+.venv/
+*.egg-info/
+.eggs/
+pip-log.txt
+
+# ── .NET / C# ─────────────────────────────────────────────
 bin/
 obj/
+project.lock.json
+*.user
 .vs/
-node_modules/
 
-# Local-only logs (do not commit)
+# ── Logs & temp files ─────────────────────────────────────
+*.log
 agent_temp_logs.txt
 vault-logs.txt
+debug_out.log
+test_import.py
+curl_result.txt
+full_server_log.txt
+server_startup.log
+uvicorn_debug.log
+final_result.json
+final_result_ok.json
+test_output.txt
+worker_error.txt
+/tmp/
 
-# Never commit service account token secrets
-k8s/reviewer-secret.yaml
-
-# Local media / docs exports (ignore unless intentionally tracked)
+# ── Local media / docs exports ────────────────────────────
 *.png
 linkedin_carousel*.pdf
 final_combined_carousel.pdf
-
-# Local helper scripts for generating PDFs
 make_pdf.py
 merge_pdf.py
+
+# ── IDE & OS ──────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

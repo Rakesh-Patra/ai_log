@@ -4,6 +4,7 @@ metadata:
   labels:
     app: redis
   name: redis
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -14,8 +15,16 @@ spec:
       labels:
         app: redis
     spec:
+      serviceAccountName: redis-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - image: redis:alpine
+      - image: redis:7.2.4-alpine
         name: redis
         ports:
         - containerPort: 6379
@@ -25,10 +34,15 @@ spec:
             cpu: 100m
             memory: 64Mi
           limits:
-            cpu: 250m
+            cpu: 500m
             memory: 128Mi
         securityContext:
           allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 999
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         volumeMounts:
         - mountPath: /data
           name: redis-data

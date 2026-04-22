@@ -59,7 +59,6 @@ jobs:
     name: "\U0001F3D7 Terraform ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'Apply' || 'Plan' }}"
     runs-on: ubuntu-latest
     needs: checkov-scan
-    needs: checkov-scan
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -81,7 +80,7 @@ jobs:
           url: ${{ env.VAULT_ADDR }}
           role: gh-actions-role
           method: jwt
-          jwtGithubAudience: "https://github.com/patracoder"
+          jwtGithubAudience: "https://github.com/Rakesh-Patra"
           secrets: |
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY

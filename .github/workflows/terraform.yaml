@@ -20,6 +20,7 @@ permissions:
 env:
   TF_WORKING_DIR: agent/terraform
   VAULT_ADDR: ${{ secrets.VAULT_ADDR }}     # http://<EC2-IP>:8200
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ════════════════════════════════════════════════════════

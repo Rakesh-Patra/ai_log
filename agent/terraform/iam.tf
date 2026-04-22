@@ -32,7 +32,7 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringLike = {
           # ✅ Scoped to YOUR repo only — not all of GitHub
-          "token.actions.githubusercontent.com:sub" = "repo:patracoder/k8s-kind-voting-app:*"
+          "token.actions.githubusercontent.com:sub" = "repo:Rakesh-Patra/ai_log:*"
         }
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"

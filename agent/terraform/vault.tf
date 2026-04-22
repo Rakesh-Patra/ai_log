@@ -39,7 +39,11 @@ resource "vault_aws_secret_backend_role" "terraform_role" {
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ]
-        Resource = "*"  # Scoped in prod via resource ARNs
+        Resource = [
+          "arn:aws:ecr:*:*:repository/ai-log/*",
+          "arn:aws:s3:::ai-log-artifacts-*",
+          "arn:aws:dynamodb:*:*:table/ai-log-tfstate-lock"
+        ]
       }
     ]
   })
@@ -81,14 +85,14 @@ resource "vault_jwt_auth_backend_role" "github_actions" {
   token_policies = [vault_policy.terraform_ci.name]
   token_ttl      = 3600
 
-  bound_audiences = ["https://github.com/patracoder"]
+  bound_audiences = ["https://github.com/Rakesh-Patra"]
   user_claim      = "sub"
   role_type       = "jwt"
 
   bound_claims_type = "glob"
   bound_claims = {
     # ✅ Scoped to this repo only
-    sub = "repo:patracoder/k8s-kind-voting-app:*"
+    sub = "repo:Rakesh-Patra/ai_log:*"
   }
 }
 
@@ -109,7 +113,7 @@ resource "vault_kv_secret_v2" "db_credentials_placeholder" {
 
   data_json = jsonencode({
     # ⚠️ PLACEHOLDER — override immediately after apply:
-    #   vault kv put secret/db-credentials username=admin password=REAL_PASSWORD
+    #   vault kv put secret/db-credentials username=admin password=...
     host = "db.default.svc.cluster.local"
   })
 

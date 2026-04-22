@@ -6,25 +6,25 @@
 # ════════════════════════════════════════════════════════════════
 
 # ── Default: every change needs at least 1 review ────────────
-*                           @patracoder
+*                           @Rakesh-Patra
 
 # ── CI/CD & Security Workflows ───────────────────────────────
-/.github/                   @patracoder
-/.github/workflows/         @patracoder
+/.github/                   @Rakesh-Patra
+/.github/workflows/         @Rakesh-Patra
 
 # ── Infrastructure (Terraform, K8s manifests) ────────────────
-/k8s/                       @patracoder
-/agent/terraform/           @patracoder
+/k8s/                       @Rakesh-Patra
+/agent/terraform/           @Rakesh-Patra
 
 # ── Secrets & Auth configuration ─────────────────────────────
-/.gitignore                 @patracoder
-/.pre-commit-config.yaml    @patracoder
-/custom-rules.toml          @patracoder
-/agent/.env.example         @patracoder
+/.gitignore                 @Rakesh-Patra
+/.pre-commit-config.yaml    @Rakesh-Patra
+/.gitleaks.toml             @Rakesh-Patra
+/agent/.env.example         @Rakesh-Patra
 
 # ── AI Agent core logic ───────────────────────────────────────
-/agent/app/core/            @patracoder
-/agent/mcp_server.py        @patracoder
+/agent/app/core/            @Rakesh-Patra
+/agent/mcp_server.py        @Rakesh-Patra
 
 # ── Docker build files ────────────────────────────────────────
-**/Dockerfile               @patracoder
+**/Dockerfile               @Rakesh-Patra

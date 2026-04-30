@@ -31,8 +31,8 @@ jobs:
               echo "✅ SKIP (template/bootstrap): $f"
               continue
             fi
-            # Check if it's a K8s Secret kind
-            if grep -q 'kind: Secret' "$f" 2>/dev/null; then
+            # Check if it's a K8s Secret kind (use $ to avoid matching SecretStore)
+            if grep -q 'kind: Secret$' "$f" 2>/dev/null; then
               echo "❌ FAIL: $f contains a real K8s Secret — this should be gitignored!"
               FOUND=1
             fi

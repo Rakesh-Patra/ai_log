@@ -70,9 +70,7 @@ app = FastAPI(
     ),
     version=settings.app_version,
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    root_path="/agent",
 )
 
 # ── Rate Limiting ─────────────────────────────────────────────

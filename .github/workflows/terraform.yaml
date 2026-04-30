@@ -176,8 +176,8 @@ jobs:
 
       - name: "🚢 Remote Deploy via SSM"
         run: |
-          # Get the instance ID from tags
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=k3s-host" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].InstanceId" --output text)
+          # Get the instance ID from tags (Matches ec2.tf Name tag)
+          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=K3s-Vault-Host" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].InstanceId" --output text)
           
           echo "Deploying to Instance: $INSTANCE_ID"
           

@@ -1,3 +1,14 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: agent-strip-prefix
+  namespace: voting-agent
+spec:
+  stripPrefix:
+    prefixes:
+      - /agent
+
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -6,6 +17,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "traefik"
     traefik.ingress.kubernetes.io/router.entrypoints: "web"
+    traefik.ingress.kubernetes.io/router.middlewares: voting-agent-agent-strip-prefix@kubernetescrd
 spec:
   rules:
   - http:

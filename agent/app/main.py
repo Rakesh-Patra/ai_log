@@ -43,15 +43,15 @@ async def lifespan(app: FastAPI):
         debug=settings.debug,
     )
 
-    # 🟢 Connect Temporal client (Non-blocking for fast startup)
-    async def connect_temporal():
+    # 🟢 Connect Temporal client and start Worker
+    async def run_worker():
+        from app.temporal.worker import start_worker
         try:
-            await asyncio.wait_for(get_temporal_client(), timeout=10)
-            logger.info("temporal_connected")
+            await start_worker()
         except Exception as e:
-            logger.warning("temporal_not_available", error=str(e))
+            logger.error("temporal_worker_failed", error=str(e))
 
-    asyncio.create_task(connect_temporal())
+    asyncio.create_task(run_worker())
 
     yield
 

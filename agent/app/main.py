@@ -3,7 +3,6 @@ FastAPI application entry point.
 Configures the app with CORS, lifespan handlers, and health endpoint.
 """
 
-import asyncio
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -21,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
 from app.api.schemas import HealthResponse
 from app.config import get_settings
-from app.temporal.client import get_temporal_client
+
 from app.core.rate_limit import limiter
 
 from slowapi import _rate_limit_exceeded_handler
@@ -42,16 +41,6 @@ async def lifespan(app: FastAPI):
         version=settings.app_version,
         debug=settings.debug,
     )
-
-    # 🟢 Connect Temporal client (Non-blocking for fast startup)
-    async def connect_temporal():
-        try:
-            await asyncio.wait_for(get_temporal_client(), timeout=10)
-            logger.info("temporal_connected")
-        except Exception as e:
-            logger.warning("temporal_not_available", error=str(e))
-
-    asyncio.create_task(connect_temporal())
 
     yield
 

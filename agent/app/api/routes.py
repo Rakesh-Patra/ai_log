@@ -128,58 +128,50 @@ async def query_agent(request: Request, query_request: QueryRequest):
             },
         )
 
-    # ── Step 2: Invoke Agent (direct, no Temporal) ──────────
+    # ── Step 2: Invoke Agent ──────────────────────────────────
     try:
+        from app.temporal.client import get_temporal_client
+        from app.temporal.constants import TASK_QUEUE
+        from app.temporal.workflows import AgentQAWorkflow
+
+
         # Build conversation context from InsForge
         insforge = get_insforge_client()
         db_history = await insforge.get_history(conversation_id)
-
-        # Convert DB rows to message tuples for LangGraph
-        messages = [
-            (msg["role"], msg["content"])
+        
+        # Convert DB rows to ConversationMessage objects
+        messages_obj = [
+            ConversationMessage(role=msg["role"], content=msg["content"])
             for msg in db_history
         ]
-
-        # Add new user message
-        messages.append(("user", query_request.query))
-
+        
+        # Add new user message to local context to keep it in sync for this request
+        messages_obj.append(ConversationMessage(role="user", content=query_request.query))
+        
         # Persist user message to InsForge
         await insforge.save_message(conversation_id, "user", query_request.query)
 
-        # Invoke the agent directly via MCP (with retry for transient errors)
-        max_attempts = 3
-        agent_response = ""
-        tools_used = []
-        for attempt in range(1, max_attempts + 1):
-            try:
-                mcp = create_mcp_client()
-                async with get_mcp_session(mcp) as tools_list:
-                    agent = create_k8s_agent(tools_list)
-                    result = await agent.ainvoke({"messages": messages})
+        # Prepare messages for Temporal/Agent
+        messages = [
+            list((msg.role, msg.content)) for msg in messages_obj
+        ]
 
-                    # Extract final AI message
-                    ai_messages = [
-                        m for m in result["messages"]
-                        if hasattr(m, "content") and getattr(m, "type", None) == "ai"
-                    ]
-                    agent_response = ai_messages[-1].content if ai_messages else ""
+        # ✅ Get client properly
+        client = await get_temporal_client()
 
-                    # Collect tool names used
-                    tools_used = list({
-                        m.name for m in result["messages"]
-                        if hasattr(m, "name") and getattr(m, "type", None) == "tool"
-                    })
-                break  # success
-            except Exception as inner_exc:
-                if attempt < max_attempts and _is_transient_mcp_error(inner_exc):
-                    logger.warning(
-                        "query_transient_mcp_error_retrying",
-                        attempt=attempt,
-                        error=str(inner_exc),
-                    )
-                    await asyncio.sleep(0.4 * attempt)
-                    continue
-                raise  # re-raise on final attempt or non-transient error
+        if not client:
+            raise Exception("Temporal Client not available")
+
+        # ✅ SINGLE correct call
+        result = await client.execute_workflow(
+            AgentQAWorkflow.run,
+            messages,
+            id=f"agent-workflow-{conversation_id}-{int(time.time())}",
+            task_queue=TASK_QUEUE,
+        )
+
+        agent_response = result["agent_response"]
+        tools_used = result["tools_used"]
 
     except BaseException as e:
         actual_error = e

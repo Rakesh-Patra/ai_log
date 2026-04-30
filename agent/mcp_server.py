@@ -1,6 +1,16 @@
 import os
 import asyncio
 import sys
+import warnings
+
+# Suppress warnings that might pollute stdio/stderr and break MCP protocol
+warnings.filterwarnings("ignore")
+
+# Initialize logging FIRST before any other app imports
+from app.utils.logging import setup_logging, get_logger
+setup_logging()
+logger = get_logger("mcp_server")
+
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 
@@ -10,19 +20,13 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.mcp_client import create_mcp_client, get_mcp_session
 from app.core.agent import create_k8s_agent
-from app.utils.logging import setup_logging, get_logger
 
 # Load environment variables
 load_dotenv()
 
-# Initialize logging
-setup_logging()
-logger = get_logger("mcp_server")
-
 # Initialize FastMCP server
 mcp = FastMCP(
     "K8s-Assistant",
-    dependencies=["fastmcp", "langchain-google-genai", "langgraph"],
 )
 
 @mcp.tool()

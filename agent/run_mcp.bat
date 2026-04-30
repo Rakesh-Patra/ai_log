@@ -9,5 +9,7 @@ if not exist "venv_win\Scripts\python.exe" (
     exit /b 1
 )
 
-:: Run the MCP server
+:: Run the MCP server with UTF-8 encoding enforced
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 venv_win\Scripts\python.exe mcp_server.py %*

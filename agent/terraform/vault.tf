@@ -15,7 +15,7 @@ resource "vault_aws_secret_backend" "aws" {
 
   # These come from environment: VAULT_AWS_ACCESS_KEY_ID / SECRET
   # Never hardcode credentials here.
-  default_lease_ttl_seconds = 3600   # 1 hour max
+  default_lease_ttl_seconds = 3600 # 1 hour max
   max_lease_ttl_seconds     = 3600
 }
 
@@ -118,6 +118,6 @@ resource "vault_kv_secret_v2" "db_credentials_placeholder" {
   })
 
   lifecycle {
-    ignore_changes = [data_json]  # Don't overwrite manual updates
+    ignore_changes = [data_json] # Don't overwrite manual updates
   }
 }

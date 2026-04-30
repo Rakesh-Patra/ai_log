@@ -8,25 +8,22 @@
 # ════════════════════════════════════════════════════════════
 
 # ── GitHub Actions OIDC trust (no static keys needed) ────────
-data "aws_iam_openid_connect_provider" "github" {
-  # Assumes OIDC provider already exists — create once per account:
-  # aws iam create-open-id-connect-provider \
-  #   --url https://token.actions.githubusercontent.com \
-  #   --client-id-list sts.amazonaws.com \
-  #   --thumbprint-list <thumbprint>
-  url = "https://token.actions.githubusercontent.com"
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
 }
 
 resource "aws_iam_role" "github_actions" {
   name        = "${var.project_name}-github-actions"
-  description = "Role assumed by GitHub Actions via OIDC — no static keys"
+  description = "Role assumed by GitHub Actions via OIDC - no static keys"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
       Principal = {
-        Federated = data.aws_iam_openid_connect_provider.github.arn
+        Federated = aws_iam_openid_connect_provider.github.arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
@@ -53,10 +50,10 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAuth"
-        Effect = "Allow"
-        Action = ["ecr:GetAuthorizationToken"]
-        Resource = "*"   # Required — GetAuthorizationToken has no resource scope
+        Sid      = "ECRAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*" # Required — GetAuthorizationToken has no resource scope
       },
       {
         Sid    = "ECRPush"
@@ -80,7 +77,7 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
 # ── IAM role for Vault EC2 instance ──────────────────────────
 resource "aws_iam_role" "vault_ec2" {
   name        = "${var.project_name}-vault-ec2"
-  description = "EC2 instance role for Vault — scoped S3 access only"
+  description = "EC2 instance role for Vault - scoped S3 access only"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -113,6 +110,11 @@ resource "aws_iam_role_policy" "vault_s3" {
       ]
     }]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "vault_ssm" {
+  role       = aws_iam_role.vault_ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_instance_profile" "vault_ec2" {

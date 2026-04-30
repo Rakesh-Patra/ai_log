@@ -15,7 +15,7 @@ resource "aws_ecr_repository" "app" {
   for_each = toset(local.ecr_repos)
 
   name                 = "${var.project_name}/${each.key}"
-  image_tag_mutability = var.ecr_image_tag_mutability   # ✅ CKV_AWS_51
+  image_tag_mutability = var.ecr_image_tag_mutability # ✅ CKV_AWS_51
 
   # ✅ CKV_AWS_163 — scan on push
   image_scanning_configuration {

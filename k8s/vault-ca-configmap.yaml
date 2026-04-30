@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-ca-cert
+  namespace: voting-agent
+  labels:
+    app: vault
+  annotations:
+    # This ConfigMap holds the CA certificate used by External Secrets to validate Vault's TLS.
+    # Populate `ca.crt` with the PEM-encoded root CA of your Vault instance.
+    # Example: echo "$(cat /path/to/ca.pem)" > ca.crt
+    # Ensure this ConfigMap is created before applying the SecretStore.
+    security.voting-app/managed: "true"
+
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    # <Insert your Vault CA certificate here>
+    -----END CERTIFICATE-----

@@ -40,7 +40,7 @@ variable "project_name" {
 variable "ecr_image_tag_mutability" {
   description = "ECR image tag mutability (IMMUTABLE recommended for prod)"
   type        = string
-  default     = "IMMUTABLE"   # Checkov: CKV_AWS_51
+  default     = "IMMUTABLE" # Checkov: CKV_AWS_51
   validation {
     condition     = contains(["MUTABLE", "IMMUTABLE"], var.ecr_image_tag_mutability)
     error_message = "Must be MUTABLE or IMMUTABLE."
@@ -50,5 +50,5 @@ variable "ecr_image_tag_mutability" {
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting ECR + S3"
   type        = string
-  default     = ""   # If empty, uses AWS-managed key (acceptable for dev)
+  default     = "" # If empty, uses AWS-managed key (acceptable for dev)
 }

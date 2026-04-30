@@ -23,26 +23,26 @@ terraform {
 
   # ── Remote State: encrypted S3 + DynamoDB locking ──────────
   backend "s3" {
-    bucket         = "k8s-voting-app-tfstate"
+    bucket         = "k8s-voting-app-tfstate-0f0a738c"
     key            = "agent/terraform.tfstate"
     region         = "us-east-1"
-    encrypt        = true                          # Checkov: CKV_AWS_119
+    encrypt        = true # Checkov: CKV_AWS_119
     dynamodb_table = "k8s-voting-app-tfstate-lock"
-    kms_key_id     = "alias/terraform-state"       # Checkov: CKV_AWS_119
+    # kms_key_id     = "alias/terraform-state" # Optional: add if using custom KMS
   }
 }
 
 # ── Vault Provider — connects to your EC2 Vault instance ─────
 provider "vault" {
   address = var.vault_address
-  # Auth via OIDC (GitHub Actions) or token from env VAULT_TOKEN
+  # Auth via token from env VAULT_TOKEN
 }
 
 # ── Fetch dynamic AWS credentials from Vault ─────────────────
 data "vault_aws_access_credentials" "creds" {
   backend = "aws"
   role    = var.vault_aws_role
-  type    = "iam_user"
+  type    = "creds"
 }
 
 # ── AWS Provider — uses Vault-issued temporary credentials ────

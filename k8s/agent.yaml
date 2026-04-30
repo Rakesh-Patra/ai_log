@@ -1,0 +1,186 @@
+# ════════════════════════════════════════════════════════════
+# AI SRE Agent — Complete Hardened Manifest
+#
+# Security posture:
+#   ✅ ClusterIP only (never LoadBalancer/NodePort)
+#   ✅ Vault Kubernetes auth (no static tokens)
+#   ✅ Vault TLS (https://)
+#   ✅ Non-root, read-only where possible
+#   ✅ Capabilities dropped, seccomp enforced
+#   ✅ Resource limits enforced
+# ════════════════════════════════════════════════════════════
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-sre-agent
+  namespace: voting-agent
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ai-sre-binding
+subjects:
+- kind: ServiceAccount
+  name: ai-sre-agent
+  namespace: voting-agent
+roleRef:
+  kind: ClusterRole
+  name: ai-sre-role
+  apiGroup: rbac.authorization.k8s.io
+
+# ── ExternalSecret: Agent credentials via Vault K8s auth ──────
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: agent-credentials-sync
+  namespace: voting-agent
+  annotations:
+    security.io/classification: "reference-only"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: agent-secrets
+    creationPolicy: Owner
+    deletionPolicy: Delete
+  data:
+  - secretKey: GOOGLE_API_KEY
+    remoteRef:
+      key: agent-credentials
+      property: api_key
+  - secretKey: LANGCHAIN_API_KEY
+    remoteRef:
+      key: agent-credentials
+      property: langchain_api_key
+  - secretKey: API_AUTH_KEY
+    remoteRef:
+      key: agent-credentials
+      property: api_auth_key
+
+# ── Deployment ────────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-sre-agent
+  namespace: voting-agent
+  labels:
+    app: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      serviceAccountName: ai-sre-agent
+      automountServiceAccountToken: true   # Needed for K8s API + Vault auth
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: agent
+        image: patracoder/k8s-ai-agent:v1.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: agent-secrets
+              key: GOOGLE_API_KEY
+        
+        # ── Public API Security ──
+        - name: API_AUTH_KEY
+          valueFrom:
+            secretKeyRef:
+              name: agent-secrets
+              key: API_AUTH_KEY
+
+        # ── LangSmith Tracing ──
+        - name: LANGCHAIN_TRACING_V2
+          value: "true"
+        - name: LANGCHAIN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: agent-secrets
+              key: LANGCHAIN_API_KEY
+        - name: LANGCHAIN_PROJECT
+          value: "k8s-ai-agent-prod"
+
+        # ── Temporal Connection ──
+        - name: TEMPORAL_HOST
+          value: "temporal-frontend.voting-monitoring.svc.cluster.local"
+        - name: TEMPORAL_PORT
+          value: "7233"
+
+        # ── Observability ──
+        - name: PROMETHEUS_URL
+          value: "http://prometheus-server.monitoring.svc.cluster.local"
+
+        - name: KUBECONFIG_PATH
+          value: "" # Empty tells the agent to use in-cluster config!
+        - name: APP_ENV
+          value: "prod"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop: ["ALL"]
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 15
+
+# ── Service: ClusterIP ONLY — internal access only ────────────
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent
+  namespace: voting-agent
+  labels:
+    app: agent
+  annotations:
+    security.voting-app/exposure: "internal-only"
+    security.voting-app/no-loadbalancer: "true"
+spec:
+  type: ClusterIP           # NEVER change to LoadBalancer or NodePort
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  selector:
+    app: agent

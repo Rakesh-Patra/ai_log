@@ -77,13 +77,6 @@ spec:
           type: Utilization
           averageUtilization: 70
 
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-
 # ─────────────────────────────────────────────────────────────
 # PDB: vote — always at least 1 available during disruptions
 # ─────────────────────────────────────────────────────────────
@@ -129,6 +122,3 @@ spec:
     matchLabels:
       app: worker
 
-  selector:
-    matchLabels:
-      app: worker

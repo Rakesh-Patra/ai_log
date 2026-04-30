@@ -1,12 +1,29 @@
+# ════════════════════════════════════════════════════════════
+# Agent Service — ClusterIP ONLY (never expose publicly)
+#
+# ⚠️ SECURITY: This service MUST remain ClusterIP.
+#   The agent has cluster-admin-level read access and must
+#   never be reachable from outside the cluster.
+#   Use kubectl port-forward for local access:
+#     kubectl port-forward svc/agent -n voting-agent 8000:8000
+# ════════════════════════════════════════════════════════════
 apiVersion: v1
 kind: Service
 metadata:
   name: agent
   namespace: voting-agent
+  labels:
+    app: agent
+  annotations:
+    # Explicit policy: prevent accidental type change
+    security.voting-app/exposure: "internal-only"
+    security.voting-app/no-loadbalancer: "true"
 spec:
-  type: ClusterIP
+  type: ClusterIP           # NEVER change to LoadBalancer or NodePort
   selector:
     app: agent
   ports:
   - port: 8000
     targetPort: 8000
+    protocol: TCP
+    name: http

@@ -4,5 +4,18 @@ metadata:
   name: ai-sre-role
 rules:
 - apiGroups: ["", "apps", "batch", "extensions", "networking.k8s.io"]
-  resources: ["pods", "pods/log", "nodes", "services", "deployments", "statefulsets", "daemonsets", "replicasets", "jobs", "cronjobs", "namespaces", "configmaps", "secrets", "events", "ingresses"]
-  verbs: ["get", "list", "watch", "patch", "update", "delete"]
+  resources:
+    - pods
+    - pods/log
+    - services
+    - deployments
+    - statefulsets
+    - daemonsets
+    - replicasets
+    - jobs
+    - cronjobs
+    - namespaces
+    - configmaps
+    - events
+    - ingresses
+  verbs: ["get", "list", "watch"]

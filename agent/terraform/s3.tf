@@ -19,7 +19,7 @@ resource "random_id" "bucket_suffix" {
 resource "aws_s3_bucket" "artifacts" {
   # checkov:skip=CKV_AWS_144:Cross-region replication not required for dev
   bucket        = "${var.project_name}-artifacts-${random_id.bucket_suffix.hex}"
-  force_destroy = var.environment != "prod"   # Safe destruction in non-prod
+  force_destroy = var.environment != "prod" # Safe destruction in non-prod
 
   tags = {
     Name        = "${var.project_name}-artifacts"
@@ -90,7 +90,7 @@ resource "aws_s3_bucket_logging" "artifacts" {
 # ── Terraform state bucket (also Checkov-clean) ───────────────
 resource "aws_s3_bucket" "tfstate" {
   bucket        = "${var.project_name}-tfstate-${random_id.bucket_suffix.hex}"
-  force_destroy = false   # Never destroy state bucket!
+  force_destroy = false # Never destroy state bucket!
 }
 
 resource "aws_s3_bucket_public_access_block" "tfstate" {

@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ── Agent-specific resources ──────────────────────────────────
+resources:
+  - serviceaccount.yaml
+  - clusterrole.yaml
+  - clusterrolebinding.yaml
+
+  # Vault TLS CA for the voting-agent namespace
+  # NOTE: create this ConfigMap manually first:
+  #   kubectl create configmap vault-ca-cert \
+  #     --from-file=ca.crt=/path/to/vault-ca.pem \
+  #     -n voting-agent
+  # Then the SecretStore + ExternalSecret will pick it up.
+  - external-secrets.yaml
+
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml

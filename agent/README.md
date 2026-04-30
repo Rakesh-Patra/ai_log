@@ -58,7 +58,7 @@ You can use this agent directly in your IDE (Cursor, Claude Desktop, VS Code) us
 1. Ensure your `.env` is configured with `GOOGLE_API_KEY`.
 2. Open your IDE's MCP settings.
 3. Add a new command-based MCP server:
-   - **Command**: `c:\ai_log\k8s-kind-voting-app\agent\run_mcp.bat`
+   - **Command**: `<repo-root>\agent\run_mcp.bat`
 
 ### Linux / Mac
 1. Configure your `.env`.
@@ -174,3 +174,30 @@ curl -N -X POST http://localhost:8000/api/v1/query/stream \
 ## Model
 
 The default model is set in `app/config.py` (e.g. **Gemini** `gemini-2.5-flash-lite`); override with `MODEL_NAME` in `.env` if needed.
+
+---
+
+## 🏗️ Portability & Multi-App Support
+
+This agent is designed to be **pluggable**. If you want to use this agent for a **different Kubernetes application** or on a **different cluster**, follow these steps:
+
+### 1. Update Cluster Access (RBAC)
+The agent needs permission to manage your app. Update the `k8s/serviceaccount-voting-app.yaml` (or equivalent) to include your app's namespace in the `RoleBinding`.
+
+### 2. Connect Your Own Temporal
+To use your own Temporal instance for durable workflows, update the environment variables in `agent.yaml`:
+```yaml
+- name: TEMPORAL_HOST
+  value: "your-temporal-frontend.namespace.svc.cluster.local"
+- name: TEMPORAL_PORT
+  value: "7233"
+```
+
+### 3. Connect Your Own LangSmith
+To track traces in your own LangSmith project:
+1. Generate an API Key at [smith.langchain.com](https://smith.langchain.com/).
+2. Add the key to your Vault/Secret.
+3. Update `LANGCHAIN_PROJECT` in `agent.yaml`.
+
+### 4. Adjust Safety Guardrails
+If your app requires destructive actions (like automated pod deletion), update the `risk_threshold` in `app/config.py` or set the `RISK_THRESHOLD` env var. By default, it blocks anything above 30% risk without human approval.

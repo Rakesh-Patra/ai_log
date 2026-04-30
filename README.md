@@ -71,6 +71,28 @@ An autonomous Kubernetes observability agent deployed in the `voting-agent` name
 - **Features:** Natural language cluster queries, rate limiting, conversation history, input/output guardrails, SSE streaming
 - **Docs:** [`agent/README.md`](agent/README.md)
 
+## Cloud Architecture Options
+
+This platform is designed to be **cluster-agnostic**. You can deploy it to a cost-effective K3s cluster today and migrate to a managed EKS cluster tomorrow with zero code changes.
+
+### 1. Cost-Effective (Learner) Approach: K3s on EC2
+**Current implementation: ~$15 - $30 / month**
+Designed for learners, this architecture provides a real Kubernetes environment without the high cost of managed services.
+- **Compute:** A single `m7i-flex.large` EC2 instance running **K3s**.
+- **Automation:** Fully automated via **Terraform** and **GitHub Actions**.
+- **CI/CD:** Features **"Push-to-Host"**—any code push to `main` automatically deploys to the public IP via AWS SSM.
+- **Code:** See `agent/terraform/` for the infrastructure and `.github/workflows/terraform.yaml` for the pipeline.
+
+### 2. Production Approach: AWS EKS + Managed Services
+**Scale-Ready: ~$200+ / month**
+Designed for enterprise environments. The **AI SRE Agent** and all **K8s manifests** are 100% compatible with EKS.
+- **Compute:** **Amazon EKS** with multi-AZ node groups.
+- **Autoscaling:** Integrated with **HPA** (`k8s/hpa-pdb.yaml`) and Cluster Autoscaler.
+- **Networking:** Support for AWS Load Balancer Controller (ALB).
+- **Security:** Ready for IAM Roles for Service Accounts (IRSA).
+
+---
+
 ## Quick Start (Local)
 
 ### Option 1: Kubernetes (kind) — Recommended
@@ -159,6 +181,7 @@ bash run-hardened.sh
 
 ## Security Before You Push to GitHub
 
+- Read [`SECURITY.md`](SECURITY.md) and follow the publishing checklist.
 - **`agent/.env` is gitignored** — it must stay local. Only `agent/.env.example` (placeholders) belongs in the repo.
 - Before `git add`, run:
 

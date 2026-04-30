@@ -65,10 +65,20 @@ def _is_kube_tls_error_text(text: str) -> bool:
 
 
 async def _invoke_agent_once(messages: list) -> dict:
-    """Run one agent invocation with a fresh MCP client/session."""
-    client = create_mcp_client()
-    async with get_mcp_session(client) as tools:
-        agent = create_k8s_agent(tools)
+    """Run one agent invocation with a fresh MCP client/session, with fallback."""
+    tools = []
+    try:
+        client = create_mcp_client()
+        # Use a shorter timeout for the session open to fail fast if offline
+        async with asyncio.timeout(10):
+            async with get_mcp_session(client) as mcp_tools:
+                tools = mcp_tools
+                agent = create_k8s_agent(tools)
+                return await agent.ainvoke({"messages": messages})
+    except (Exception, asyncio.TimeoutError) as e:
+        logger.warning("mcp_session_failed_falling_back", error=str(e))
+        # Fallback: run agent with ONLY built-in tools (shell, prom, etc.)
+        agent = create_k8s_agent([])
         return await agent.ainvoke({"messages": messages})
 
 @activity.defn(name="run_agent_activity")

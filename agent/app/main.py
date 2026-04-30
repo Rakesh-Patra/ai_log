@@ -71,6 +71,8 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
     root_path="/agent",
+    openapi_url="/openapi.json",
+    servers=[{"url": "/agent"}]
 )
 
 # ── Rate Limiting ─────────────────────────────────────────────

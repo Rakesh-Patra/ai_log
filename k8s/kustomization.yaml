@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# ── Resource ordering: namespaces first, then workloads ───────
+# ?????? Resource ordering: namespaces first, then workloads ?????????????????????
 resources:
   # Infrastructure / namespaces
   - namespaces.yaml
@@ -40,3 +40,4 @@ resources:
 
   # Kyverno admission policies
   - kyverno-policies.yaml
+- agent-ingress.yaml

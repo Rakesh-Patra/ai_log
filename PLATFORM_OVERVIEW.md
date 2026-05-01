@@ -45,10 +45,10 @@ Unlike standard monitoring tools (Datadog), this platform doesn't just alert you
 ---
 
 ## 🌐 Public Access Endpoints
-*   **Voting Application**: [http://54.197.145.134/](http://54.197.145.134/)
-*   **Real-time Results**: [http://54.197.145.134/result](http://54.197.145.134/result)
-*   **AI Agent API**: [http://54.197.145.134/agent](http://54.197.145.134/agent)
-*   **Security Dashboard**: [http://54.197.145.134:8200](http://54.197.145.134:8200)
+*   **Voting Application**: [http://100.54.213.247/](http://100.54.213.247/)
+*   **Real-time Results**: [http://100.54.213.247/result](http://100.54.213.247/result)
+*   **AI Agent API**: [http://100.54.213.247/agent](http://100.54.213.247/agent)
+*   **Security Dashboard**: [http://13.232.226.25:30200](http://13.232.226.25:30200)
 
 ---
 

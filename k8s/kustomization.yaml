@@ -40,4 +40,4 @@ resources:
 
   # Kyverno admission policies
   - kyverno-policies.yaml
-- agent-ingress.yaml
+  - agent-ingress.yaml

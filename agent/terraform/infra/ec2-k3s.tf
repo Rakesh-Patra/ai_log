@@ -16,7 +16,42 @@ resource "aws_iam_role" "k3s_node_role" {
   })
 }
 
-# Attach SSM policy so we can securely access the node without opening port 22
+resource "aws_iam_role_policy" "vault_aws_engine" {
+  name = "vault-aws-secrets-engine"
+  role = aws_iam_role.k3s_node_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:CreateUser",
+          "iam:DeleteUser",
+          "iam:GetUser",
+          "iam:ListUserPolicies",
+          "iam:ListAttachedUserPolicies",
+          "iam:PutUserPolicy",
+          "iam:DeleteUserPolicy",
+          "iam:AttachUserPolicy",
+          "iam:DetachUserPolicy",
+          "iam:CreateAccessKey",
+          "iam:DeleteAccessKey"
+        ]
+        Resource = ["arn:aws:iam::*:user/vault-*"]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:ListRoles"
+        ]
+        Resource = ["*"]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "ssm_policy" {
   role       = aws_iam_role.k3s_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -59,7 +94,12 @@ resource "aws_instance" "k3s" {
 
     # Update OS and install prerequisites
     apt-get update
-    apt-get install -y curl jq
+    apt-get install -y curl jq snapd
+
+    # Install AWS SSM Agent
+    snap install amazon-ssm-agent --classic
+    systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+    systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 
     # Install K3s (Server Node)
     # We add --tls-san so the remote kubeconfig can use the public IP

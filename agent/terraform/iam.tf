@@ -112,6 +112,42 @@ resource "aws_iam_role_policy" "vault_s3" {
   })
 }
 
+resource "aws_iam_role_policy" "vault_aws_engine" {
+  name = "vault-aws-secrets-engine"
+  role = aws_iam_role.vault_ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:CreateUser",
+          "iam:DeleteUser",
+          "iam:GetUser",
+          "iam:ListUserPolicies",
+          "iam:ListAttachedUserPolicies",
+          "iam:PutUserPolicy",
+          "iam:DeleteUserPolicy",
+          "iam:AttachUserPolicy",
+          "iam:DetachUserPolicy",
+          "iam:CreateAccessKey",
+          "iam:DeleteAccessKey"
+        ]
+        Resource = ["arn:aws:iam::*:user/vault-*"] # Scoped to users managed by Vault
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:ListRoles"
+        ]
+        Resource = ["*"]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "vault_ssm" {
   role       = aws_iam_role.vault_ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"

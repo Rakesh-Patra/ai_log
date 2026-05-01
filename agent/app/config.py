@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     risk_threshold: int = 30 # Percent (0-100). Commands above this require human approval.
 
     # ── Temporal Settings ─────────────────────────────────────
-    temporal_host: str = "127.0.0.1"
+    temporal_host: str = "temporal.default.svc.cluster.local"
     temporal_port: int = 7233
     log_level: str = "INFO"
 

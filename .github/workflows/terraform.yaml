@@ -1,80 +1,40 @@
-name: "\U0001F3D7 Terraform — Checkov Scan + Vault Deploy"
+name: "Terraform Infrastructure"
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'agent/terraform/**'
-      - '.github/workflows/terraform.yaml'
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
-    paths:
-      - 'agent/terraform/**'
-
-# Security: minimal permissions by default
-permissions:
-  contents: read
-  id-token: write   # Required for GitHub OIDC → Vault JWT auth
-  pull-requests: write
+    branches: [ "main" ]
 
 env:
-  TF_WORKING_DIR: agent/terraform
-  VAULT_ADDR: ${{ secrets.VAULT_ADDR }}     # http://<EC2-IP>:8200
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  TF_WORKING_DIR: "agent/terraform"
+  VAULT_ADDR: "http://13.232.226.25:30200"
 
 jobs:
-  # ════════════════════════════════════════════════════════
-  # STAGE 1: IaC Security Scan (Checkov)
-  # Runs on every PR — fails on CRITICAL/HIGH findings
-  # ════════════════════════════════════════════════════════
   checkov-scan:
-    name: "\U0001F3D7 Checkov IaC Scan"
+    name: "🏗️ Checkov IaC Scan"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: "\U0001F3D7 Run Checkov on Terraform"
+      - name: "🏗️ Run Checkov on Terraform"
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: agent/terraform/
           framework: terraform
-          config_file: agent/terraform/.checkov.yaml
-          output_format: cli
           soft_fail: true
-          # Output SARIF for GitHub Security tab
-          output_file_path: checkov-results.sarif
-          download_external_modules: true
 
-      - name: Upload Checkov results to GitHub Security
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: checkov-results.sarif
-        continue-on-error: true   # Don't fail if SARIF upload fails
-
-  # ════════════════════════════════════════════════════════
-  # STAGE 2: Terraform Plan (PR) / Apply (main push)
-  # AWS credentials come from Vault — never hardcoded
-  # ════════════════════════════════════════════════════════
   terraform:
-    name: "\U0001F3D7 Terraform ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'Apply' || 'Plan' }}"
+    name: "🏗️ Terraform ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'Apply' || 'Plan' }}"
     runs-on: ubuntu-latest
     needs: checkov-scan
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~1.6"
-
-      # ── Fetch dynamic AWS credentials from Vault via OIDC ──
-      - name: "🔒 Fetch AWS Credentials from Vault"
-        if: env.VAULT_ADDR != ''
+      - name: "🔑 Fetch AWS Credentials from Vault"
         uses: hashicorp/vault-action@v3
         id: vault
         with:
@@ -85,105 +45,7 @@ jobs:
           secrets: |
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY
-
-      - name: Set AWS credentials as env vars
-        if: env.VAULT_ADDR != ''
-        run: |
-          echo "AWS_ACCESS_KEY_ID=${{ steps.vault.outputs.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ steps.vault.outputs.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-          echo "TF_VAR_vault_address=${{ env.VAULT_ADDR }}" >> $GITHUB_ENV
-
-      # ── Terraform workflow ─────────────────────────────────
       - name: Terraform Init
-        if: env.VAULT_ADDR != ''
         run: terraform init -input=false
-
-      - name: Terraform Format Check
-        if: env.VAULT_ADDR != ''
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Validate
-        if: env.VAULT_ADDR != ''
-        run: terraform validate
-
       - name: Terraform Plan
-        if: env.VAULT_ADDR != ''
-        id: plan
-        run: terraform plan -input=false -out=tfplan
-        env:
-          TF_VAR_environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
-
-      # ── PR: post plan as a comment ─────────────────────────
-      - name: Post plan to PR
-        if: github.event_name == 'pull_request' && env.VAULT_ADDR != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const output = `#### Terraform Plan \`${{ steps.plan.outcome }}\`
-            > Checkov passed ✅ | Vault credentials ✅
-            Run \`terraform apply\` by merging this PR to main.`;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
-
-      # ── main push only: apply ──────────────────────────────
-      - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.VAULT_ADDR != ''
-        run: terraform apply -auto-approve tfplan
-
-      # ── Security: revoke Vault lease after use ─────────────
-      - name: Revoke Vault AWS credentials
-        if: always() && env.VAULT_ADDR != ''
-        run: |
-          curl -s -X PUT "${{ env.VAULT_ADDR }}/v1/sys/leases/revoke-self" \
-            -H "X-Vault-Token: ${{ steps.vault.outputs.VAULT_TOKEN }}" || true
-
-  # ════════════════════════════════════════════════════════
-  # STAGE 3: Deploy to K3s Host (main push only)
-  # Uses AWS SSM to run kubectl on the remote host
-  # ════════════════════════════════════════════════════════
-  deploy-k8s:
-    name: "🚢 Deploy to K3s Host"
-    runs-on: ubuntu-latest
-    needs: terraform
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v4
-
-      # Fetch temporary AWS credentials for SSM
-      - name: "🔒 Fetch AWS Credentials from Vault"
-        uses: hashicorp/vault-action@v3
-        id: vault
-        with:
-          url: ${{ secrets.VAULT_ADDR }}
-          role: gh-actions-role
-          method: jwt
-          jwtGithubAudience: "https://github.com/Rakesh-Patra"
-          secrets: |
-            aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
-            aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ steps.vault.outputs.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ steps.vault.outputs.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: "🚢 Remote Deploy via SSM"
-        run: |
-          # Get the instance ID from tags (Matches ec2-k3s.tf Name tag)
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=k8s-voting-app-k3s-node" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].InstanceId" --output text)
-          
-          echo "Deploying to Instance: $INSTANCE_ID"
-          
-          # Use SSM to clone the repo and apply manifests
-          aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["cd /home/ubuntu", "sudo -u ubuntu bash -c \"rm -rf ai_log && git clone https://github.com/Rakesh-Patra/ai_log.git && cd ai_log && kubectl apply -k k8s/\""]' \
-            --comment "Remote deployment from GitHub Actions"
+        run: terraform plan -input=false

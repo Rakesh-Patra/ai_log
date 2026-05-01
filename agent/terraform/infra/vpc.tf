@@ -87,6 +87,15 @@ resource "aws_security_group" "k3s_node" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Allow Vault API access (NodePort)
+  ingress {
+    description = "Vault API Access"
+    from_port   = 30200
+    to_port     = 30200
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Note: SSH (22) is NOT opened by default. We will use AWS SSM Session Manager 
   # to securely access the node without opening port 22, fulfilling "production practices".
 

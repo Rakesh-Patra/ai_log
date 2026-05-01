@@ -32,17 +32,25 @@ resource "vault_aws_secret_backend_role" "terraform_role" {
         Effect = "Allow"
         Action = [
           "ecr:*",
-          "s3:GetObject",
+          "ec2:*",
+          "s3:Get*",
+          "s3:List*",
           "s3:PutObject",
-          "s3:ListBucket",
           "dynamodb:GetItem",
           "dynamodb:PutItem",
-          "dynamodb:DeleteItem"
+          "dynamodb:DeleteItem",
+          "dynamodb:Describe*",
+          "dynamodb:List*",
+          "iam:Get*",
+          "iam:List*"
         ]
         Resource = [
           "arn:aws:ecr:*:*:repository/ai-log/*",
           "arn:aws:s3:::ai-log-artifacts-*",
-          "arn:aws:dynamodb:*:*:table/ai-log-tfstate-lock"
+          "arn:aws:s3:::k8s-voting-app-tfstate-*",
+          "arn:aws:s3:::k8s-voting-app-access-logs-*",
+          "arn:aws:dynamodb:*:*:table/k8s-voting-app-tfstate-lock",
+          "*"
         ]
       }
     ]

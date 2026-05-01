@@ -96,7 +96,17 @@ resource "aws_security_group" "k3s_node" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Allow Temporal UI access (NodePort)
+  ingress {
+    description = "Temporal UI Access"
+    from_port   = 30808
+    to_port     = 30808
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Note: SSH (22) is NOT opened by default. We will use AWS SSM Session Manager 
+
   # to securely access the node without opening port 22, fulfilling "production practices".
 
   egress {

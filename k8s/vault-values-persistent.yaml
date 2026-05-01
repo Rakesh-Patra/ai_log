@@ -1,0 +1,29 @@
+server:
+  # Expose via NodePort
+  service:
+    type: NodePort
+    nodePort: 30200
+  # Disable dev mode to allow persistence
+  dev:
+    enabled: false
+  
+  # Enable standalone mode with file storage
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+      listener "tcp" {
+        tls_disable = 1
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+      storage "file" {
+        path = "/vault/data"
+      }
+
+  # Request a Persistent Volume
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    mountPath: "/vault/data"
+    storageClass: "local-path" # Standard for K3s/Kind

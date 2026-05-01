@@ -1,0 +1,17 @@
+﻿{
+    "kubernetes_host":  "https://kubernetes.default.svc.cluster.local:443",
+    "token_reviewer_jwt":  "eyJhbGciOiJSUzI1NiIsImtpZCI6IkZ1Wk1rRm5iRURON2dKRGZ3eEd2TWIzWWNyS1E1YjBlclpsZWJEM3I0NmMifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiLCJrM3MiXSwiZXhwIjoxODA5MTgwODk2LCJpYXQiOjE3Nzc2NDQ4OTYsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwianRpIjoiMjZlMDhiMGQtNTliYi00NDM5LWI5MmItMTU3MjczYTgzOTFkIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJkZWZhdWx0Iiwic2VydmljZWFjY291bnQiOnsibmFtZSI6InZhdWx0IiwidWlkIjoiMmMzZWY1YWItOWI5Mi00NjEwLWEzZTktZjgyMzZiN2RmZTk4In19LCJuYmYiOjE3Nzc2NDQ4OTYsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OnZhdWx0In0.hnxS6H4JeAL58JYyYhXqmjgEflyIZtdzmInlJP_-VRHnYF4K2YAhaSxMX-takeG2OcVB7mjaQXblYiuUMEv0OLxWSTrVS6PMKr61VmCckrAOCtfJP8u5n74D1_xXd0FVcjxiDrDrb-g36WBUhB5l6mepeL5I52uH6DSb-78cLvA_uUbrXFkGfSrSPyJUWsQxXrEHnAwJKtJD41RgY0o5Vjus_qsV8tqtdWOhnmphDDA9DLtHg5Jn_KfCbWpOwO7C-58IAj6Wr18WMWyfavBbzMiWPUaBkZ4v6JD6YkWtKD9xEjsCkbg5rXxHveRzWU5sQaGnHZb2RY5Q1drM3hMsDg",
+    "disable_iss_validation":  true,
+    "kubernetes_ca_cert":  [
+                               "-----BEGIN CERTIFICATE-----",
+                               "MIIBeDCCAR2gAwIBAgIBADAKBggqhkjOPQQDAjAjMSEwHwYDVQQDDBhrM3Mtc2Vy",
+                               "dmVyLWNhQDE3Nzc2MTU5ODEwHhcNMjYwNTAxMDUxMzAxWhcNMzYwNDI4MDUxMzAx",
+                               "WjAjMSEwHwYDVQQDDBhrM3Mtc2VydmVyLWNhQDE3Nzc2MTU5ODEwWTATBgcqhkjO",
+                               "PQIBBggqhkjOPQMBBwNCAAQam+qODR5w9aLAeKllnsnglfLpqwxbzDKC+6eh8UmJ",
+                               "ef15avo5vrrg9IVxLZcmdbgJ17nVuGBqgYcaZOYljG4mo0IwQDAOBgNVHQ8BAf8E",
+                               "BAMCAqQwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU6acJgZngtqGCna0rdmjn",
+                               "iESRWxswCgYIKoZIzj0EAwIDSQAwRgIhAPScLk/zl2fSF/y0I9bh3WID5C3r2Q6F",
+                               "B71p9Kxq+OsIAiEA4wyZAeVH4lmGdjhONt458JcMkc7Ojs9ayRDYYECdw58=",
+                               "-----END CERTIFICATE-----"
+                           ]
+}

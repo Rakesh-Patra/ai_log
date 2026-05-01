@@ -10,6 +10,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "traefik"
     traefik.ingress.kubernetes.io/router.entrypoints: "web"
+    traefik.ingress.kubernetes.io/router.middlewares: default-result-strip-prefix@kubernetescrd
 spec:
   rules:
   - http:

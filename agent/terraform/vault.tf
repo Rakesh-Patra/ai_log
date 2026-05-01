@@ -78,10 +78,10 @@ resource "vault_policy" "terraform_ci" {
       capabilities = ["read", "create", "update", "delete"]
     }
     path "sys/mounts/*" {
-      capabilities = ["read", "list"]
+      capabilities = ["read", "list", "create", "update", "delete"]
     }
     path "sys/auth/*" {
-      capabilities = ["read", "list"]
+      capabilities = ["read", "list", "create", "update", "delete"]
     }
     path "sys/policies/acl/*" {
       capabilities = ["read", "list", "create", "update", "delete"]

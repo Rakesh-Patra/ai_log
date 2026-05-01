@@ -125,3 +125,4 @@ vault_token_secret.yaml
 scratch/
 kubeconfig_agent/
 *.log
+agent/.env

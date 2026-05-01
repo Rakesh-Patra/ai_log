@@ -29,3 +29,38 @@ spec:
             name: result
             port:
               number: 5001
+      - path: /socket.io
+        pathType: Prefix
+        backend:
+          service:
+            name: result
+            port:
+              number: 5001
+      - path: /stylesheets
+        pathType: Prefix
+        backend:
+          service:
+            name: result
+            port:
+              number: 5001
+      - path: /js
+        pathType: Prefix
+        backend:
+          service:
+            name: result
+            port:
+              number: 5001
+      - path: /angular.min.js
+        pathType: Exact
+        backend:
+          service:
+            name: result
+            port:
+              number: 5001
+      - path: /app.js
+        pathType: Exact
+        backend:
+          service:
+            name: result
+            port:
+              number: 5001

@@ -200,6 +200,9 @@ spec:
     - podSelector:
         matchLabels:
           app: result
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: voting-monitoring
     ports:
     - protocol: TCP
       port: 5432
@@ -253,17 +256,29 @@ spec:
   - ports:
     - protocol: TCP
       port: 53      # DNS
+    - protocol: UDP
+      port: 53      # DNS
     - protocol: TCP
       port: 6443    # K8s API
     - protocol: TCP
       port: 443     # External APIs
-    - to:
-      - namespaceSelector:
-          matchLabels:
-            kubernetes.io/metadata.name: default
-        podSelector:
-          matchLabels:
-            app.kubernetes.io/name: vault
-      ports:
-      - protocol: TCP
-        port: 8200
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: default
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: voting-monitoring
+      podSelector:
+        matchLabels:
+          run: temporal-server
+    ports:
+    - protocol: TCP
+      port: 7233

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-server
+  namespace: voting-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: temporal-server
+  template:
+    metadata:
+      labels:
+        run: temporal-server
+    spec:
+      containers:
+      - name: temporal-server
+        image: temporalio/auto-setup:1.26.2
+        ports:
+        - containerPort: 7233
+        env:
+        - name: DB
+          value: postgres12
+        - name: DB_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PWD
+          value: DTKHI2CaOEi1aYwyJeQ6Vscp6NUyjR2P
+        - name: POSTGRES_SEEDS
+          value: db.default.svc.cluster.local
+        - name: SKIP_SCHEMA_SETUP
+          value: "false"

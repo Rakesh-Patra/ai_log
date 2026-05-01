@@ -44,7 +44,7 @@ jobs:
           url: ${{ env.VAULT_ADDR }}
           role: gh-actions-role
           method: jwt
-          jwtGithubAudience: "https://github.com/Rakesh-Patra/ai_log"
+          jwtGithubAudience: "https://github.com/Rakesh-Patra"
           exportToken: true
           secrets: |
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;

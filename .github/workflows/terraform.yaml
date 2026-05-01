@@ -8,7 +8,7 @@ on:
 
 env:
   TF_WORKING_DIR: "agent/terraform"
-  VAULT_ADDR: "http://13.232.226.25:30200"
+  VAULT_ADDR: "http://100.54.213.247:30200"
 
 jobs:
   checkov-scan:

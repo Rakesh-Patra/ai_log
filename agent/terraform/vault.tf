@@ -74,6 +74,9 @@ resource "vault_policy" "terraform_ci" {
     path "aws/creds/terraform-role" {
       capabilities = ["read"]
     }
+    path "auth/token/lookup-self" {
+      capabilities = ["read"]
+    }
     path "secret/data/*" {
       capabilities = ["read", "create", "update", "delete", "list"]
     }
@@ -105,10 +108,10 @@ resource "vault_policy" "terraform_ci" {
 resource "vault_jwt_auth_backend_role" "github_actions" {
   backend        = vault_jwt_auth_backend.github_actions.path
   role_name      = "gh-actions-role"
-  token_policies = [vault_policy.terraform_ci.name]
+  token_policies = ["default", vault_policy.terraform_ci.name]
   token_ttl      = 3600
 
-  bound_audiences = ["https://github.com/Rakesh-Patra"]
+  bound_audiences = ["https://github.com/Rakesh-Patra", "https://github.com/Rakesh-Patra/ai_log"]
   user_claim      = "sub"
   role_type       = "jwt"
 

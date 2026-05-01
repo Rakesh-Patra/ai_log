@@ -75,7 +75,13 @@ resource "vault_policy" "terraform_ci" {
       capabilities = ["read"]
     }
     path "secret/data/*" {
-      capabilities = ["read", "create", "update", "delete"]
+      capabilities = ["read", "create", "update", "delete", "list"]
+    }
+    path "secret/metadata/*" {
+      capabilities = ["read", "create", "update", "delete", "list"]
+    }
+    path "secret/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
     }
     path "sys/mounts/*" {
       capabilities = ["read", "list", "create", "update", "delete"]

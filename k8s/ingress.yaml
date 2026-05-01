@@ -64,3 +64,24 @@ spec:
             name: result
             port:
               number: 5001
+      - path: /socket.io.js
+        pathType: Exact
+        backend:
+          service:
+            name: result
+            port:
+              number: 5001
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-server
+            port:
+              number: 80
+      - path: /temporal
+        pathType: Prefix
+        backend:
+          service:
+            name: temporal-ui
+            port:
+              number: 8080

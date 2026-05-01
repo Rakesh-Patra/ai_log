@@ -34,7 +34,8 @@ terraform {
 
 # ── Vault Provider — connects to your EC2 Vault instance ─────
 provider "vault" {
-  address = var.vault_address
+  address          = var.vault_address
+  skip_child_token = true
   # Auth via token from env VAULT_TOKEN
 }
 

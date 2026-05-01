@@ -119,3 +119,9 @@ agent-deployment-utf8.yaml
 agent-deployment.yaml
 .insforge/
 agent/terraform/state.json
+# Secrets and Temp Files
+*.json
+vault_token_secret.yaml
+scratch/
+kubeconfig_agent/
+*.log

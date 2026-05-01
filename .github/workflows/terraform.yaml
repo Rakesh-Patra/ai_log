@@ -48,6 +48,11 @@ jobs:
           secrets: |
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY
+      - name: "⏳ Wait for AWS Credential Propagation"
+        run: |
+          echo "Waiting for dynamic IAM user to propagate..."
+          sleep 10
+          aws sts get-caller-identity
       - name: Terraform Init
         run: terraform init -input=false
       - name: Terraform Plan

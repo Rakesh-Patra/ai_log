@@ -24,3 +24,10 @@ spec:
             name: temporal-ui
             port:
               number: 8080
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 80

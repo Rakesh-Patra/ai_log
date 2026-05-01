@@ -38,18 +38,20 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
       - name: "🔑 Fetch AWS Credentials from Vault"
-        uses: hashicorp/vault-action@v3
+        uses: hashicorp/vault-action@v2.5.0
         id: vault
         with:
           url: ${{ env.VAULT_ADDR }}
           role: gh-actions-role
           method: jwt
           jwtGithubAudience: "https://github.com/Rakesh-Patra"
-          exportToken: true
+          exportToken: false
           secrets: |
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY
       - name: "⏳ Wait for AWS Credential Propagation"
+        env:
+          VAULT_TOKEN: ${{ steps.vault.outputs.vault_token }}
         run: |
           echo "Waiting for dynamic IAM user to propagate..."
           sleep 10

@@ -65,7 +65,9 @@ spec:
   - Ingress
   ingress:
   - from:
-    - podSelector: {} # Allow from all pods in same namespace
+    - namespaceSelector: {}
+    - ipBlock:
+        cidr: 0.0.0.0/0
     ports:
     - protocol: TCP
       port: 8200

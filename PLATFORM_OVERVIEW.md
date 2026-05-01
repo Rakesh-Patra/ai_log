@@ -45,9 +45,9 @@ Unlike standard monitoring tools (Datadog), this platform doesn't just alert you
 ---
 
 ## 🌐 Public Access Endpoints
-*   **Voting Application**: [http://100.54.213.247/](http://100.54.213.247/)
-*   **Real-time Results**: [http://100.54.213.247/result](http://100.54.213.247/result)
-*   **AI Agent API**: [http://100.54.213.247/agent](http://100.54.213.247/agent)
+*   **Voting Application**: [http://13.232.226.25/](http://13.232.226.25/)
+*   **Real-time Results**: [http://13.232.226.25/result](http://13.232.226.25/result)
+*   **AI Agent API**: [http://13.232.226.25/agent](http://13.232.226.25/agent)
 *   **Security Dashboard**: [http://13.232.226.25:30200](http://13.232.226.25:30200)
 
 ---

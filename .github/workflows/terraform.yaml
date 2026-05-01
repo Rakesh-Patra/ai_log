@@ -57,9 +57,15 @@ jobs:
           sleep 10
           aws sts get-caller-identity
       - name: Terraform Init
+        env:
+          VAULT_TOKEN: ${{ steps.vault.outputs.vault_token }}
         run: terraform init -input=false
       - name: Terraform Plan
+        env:
+          VAULT_TOKEN: ${{ steps.vault.outputs.vault_token }}
         run: terraform plan -input=false -var="vault_address=${{ env.VAULT_ADDR }}"
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          VAULT_TOKEN: ${{ steps.vault.outputs.vault_token }}
         run: terraform apply -auto-approve -input=false -var="vault_address=${{ env.VAULT_ADDR }}"

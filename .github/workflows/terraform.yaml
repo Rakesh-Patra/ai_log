@@ -45,6 +45,7 @@ jobs:
           role: gh-actions-role
           method: jwt
           jwtGithubAudience: "https://github.com/Rakesh-Patra"
+          exportToken: true
           secrets: |
             aws/creds/terraform-role access_key | AWS_ACCESS_KEY_ID ;
             aws/creds/terraform-role secret_key | AWS_SECRET_ACCESS_KEY

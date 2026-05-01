@@ -49,6 +49,12 @@ spec:
   - ports:
     - protocol: TCP
       port: 8200
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
 
 # ── 2c. Allow Ingress to Vault Server ──────────────────────
 ---

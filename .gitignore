@@ -109,3 +109,13 @@ merge_pdf.py
 *.swo
 .DS_Store
 Thumbs.db
+
+# ── Agent Tests & Patching ────────────────────────────────
+test_*.py
+run_cli_test.py
+query.json
+agent-deployment-*.yaml
+agent-deployment-utf8.yaml
+agent-deployment.yaml
+.insforge/
+agent/terraform/state.json

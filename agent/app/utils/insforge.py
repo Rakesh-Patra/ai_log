@@ -40,17 +40,23 @@ class InsForgeClient:
         if not self.base_url:
             logger.warning("insforge_not_configured_save_skipped")
             return None
+        
         url = f"{self.base_url}/database/records/conversations"
         data = {
             "session_id": session_id,
             "role": role,
             "content": content
         }
+        
+        # Dual-header approach for maximum compatibility
+        headers = {**self.headers, "apikey": self.api_key}
+        
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                # InsForge expects an array of rows for bulk insert support
-                response = await client.post(url, json=[data], headers=self.headers)
+                # Single object insert (more compatible than arrays in some configs)
+                response = await client.post(url, json=data, headers=headers)
                 response.raise_for_status()
+                logger.info("insforge_save_success", session_id=session_id)
                 return response.json()
             except httpx.HTTPStatusError as e:
                 status = e.response.status_code
@@ -60,13 +66,6 @@ class InsForgeClient:
                     status_code=status,
                     detail_preview=_preview(e.response.text or ""),
                     session_id=session_id,
-                )
-                return None
-            except httpx.RequestError as e:
-                logger.warning(
-                    "insforge_save_unreachable",
-                    error=str(e),
-                    hint="Check network, INSFORGE host reachability, and API key.",
                 )
                 return None
             except Exception as e:

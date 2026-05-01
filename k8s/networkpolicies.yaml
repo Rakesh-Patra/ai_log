@@ -56,7 +56,28 @@ spec:
     - protocol: UDP
       port: 53
 
-# ── 2c. Allow Ingress to Vault Server ──────────────────────
+# ── 2c. Allow Vault to reach AWS IMDS ─────────────────────────
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-vault-imds
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 80
+
+# ── 2d. Allow Ingress to Vault Server ──────────────────────
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

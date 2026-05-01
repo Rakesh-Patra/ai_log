@@ -56,4 +56,7 @@ jobs:
       - name: Terraform Init
         run: terraform init -input=false
       - name: Terraform Plan
-        run: terraform plan -input=false
+        run: terraform plan -input=false -var="vault_address=${{ env.VAULT_ADDR }}"
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -input=false -var="vault_address=${{ env.VAULT_ADDR }}"

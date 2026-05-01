@@ -127,3 +127,4 @@ kubeconfig_agent/
 *.log
 agent/.env
 k8s/vault-secret-store-bypass.yaml
+k8s/vault-secret-store-bypass.yaml

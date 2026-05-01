@@ -74,14 +74,23 @@ resource "vault_policy" "terraform_ci" {
     path "aws/creds/terraform-role" {
       capabilities = ["read"]
     }
-    path "secret/data/db-credentials" {
-      capabilities = ["read"]
+    path "secret/data/*" {
+      capabilities = ["read", "create", "update", "delete"]
     }
-    path "secret/data/redis-credentials" {
-      capabilities = ["read"]
+    path "sys/mounts/*" {
+      capabilities = ["read", "list"]
     }
-    path "secret/data/agent-keys" {
-      capabilities = ["read"]
+    path "sys/auth/*" {
+      capabilities = ["read", "list"]
+    }
+    path "sys/policies/acl/*" {
+      capabilities = ["read", "list", "create", "update", "delete"]
+    }
+    path "aws/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
+    }
+    path "auth/jwt/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
     }
   EOT
 }

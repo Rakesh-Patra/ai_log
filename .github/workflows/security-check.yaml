@@ -17,7 +17,7 @@ jobs:
     name: 🔑 Secret Leak Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # full history for scanning
 
@@ -110,7 +110,7 @@ jobs:
     name: 🛡️ K8s Manifest Security Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check securityContext on all Deployments
         run: |
@@ -212,7 +212,7 @@ jobs:
     name: 📋 K8s YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate YAML syntax
         run: |
@@ -241,7 +241,7 @@ jobs:
     name: 🐳 Dockerfile Security
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check Dockerfiles for USER instruction
         run: |
@@ -262,7 +262,7 @@ jobs:
     name: "\U0001F3D7 IaC Security Scan (Checkov)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: "\U0001F3D7 Checkov scan — Kubernetes manifests"
         uses: bridgecrewio/checkov-action@v12

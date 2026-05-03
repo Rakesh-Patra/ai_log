@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
       - name: "🔑 Fetch AWS Credentials from Vault (direct JWT)"
         id: vault
         run: |

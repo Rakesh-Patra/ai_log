@@ -2,9 +2,14 @@ name: "Terraform Infrastructure"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+# Serialize terraform runs to prevent state lock races
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   TF_WORKING_DIR: "agent/terraform"
@@ -15,39 +20,57 @@ jobs:
     name: "🏗️ Checkov IaC Scan"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: "🏗️ Run Checkov on Terraform"
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: agent/terraform/
           framework: terraform
-          soft_fail: true
+          soft_fail: false
 
   terraform:
     name: "🏗️ Terraform ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'Apply' || 'Plan' }}"
     runs-on: ubuntu-latest
     needs: checkov-scan
+    # Require manual approval on main via GitHub Environments
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
     permissions:
       contents: read
       id-token: write
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269ef065 # v3
+
       - name: "🔑 Fetch AWS Credentials from Vault (direct JWT)"
         id: vault
+        working-directory: .
         run: |
+          # Ensure jq is available
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get install -y jq
+          fi
+
           # 1. Get GitHub OIDC token
-          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://github.com/Rakesh-Patra" | jq -r '.value')
+          OIDC_TOKEN=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$VAULT_ADDR" \
+            | jq -r '.value')
+
+          if [ -z "$OIDC_TOKEN" ] || [ "$OIDC_TOKEN" = "null" ]; then
+            echo "❌ Failed to obtain OIDC token"
+            exit 1
+          fi
 
           # 2. Login to Vault via JWT
           LOGIN_RESPONSE=$(curl -sS -X POST "$VAULT_ADDR/v1/auth/jwt/login" \
             -d "{\"role\":\"gh-actions-role\",\"jwt\":\"$OIDC_TOKEN\"}")
-          
+
           VAULT_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.auth.client_token')
           if [ -z "$VAULT_TOKEN" ] || [ "$VAULT_TOKEN" = "null" ]; then
             echo "❌ Vault login failed:"
@@ -59,37 +82,93 @@ jobs:
           # 3. Fetch AWS dynamic credentials
           CREDS=$(curl -sS -H "X-Vault-Token: $VAULT_TOKEN" \
             "$VAULT_ADDR/v1/aws/creds/terraform-role")
-          
+
           AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r '.data.access_key')
           AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r '.data.secret_key')
 
           if [ -z "$AWS_ACCESS_KEY_ID" ] || [ "$AWS_ACCESS_KEY_ID" = "null" ]; then
             echo "❌ Failed to fetch AWS credentials:"
             echo "$CREDS" | jq .
+            # Revoke the Vault token before exiting
+            curl -sS -X POST "$VAULT_ADDR/v1/auth/token/revoke-self" \
+              -H "X-Vault-Token: $VAULT_TOKEN" || true
             exit 1
           fi
           echo "✅ AWS credentials fetched"
 
-          # 4. Export to GitHub Actions environment
-          echo "VAULT_TOKEN=$VAULT_TOKEN" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
-
-          # Mask secrets in logs
+          # 4. Mask secrets in logs before any output
           echo "::add-mask::$VAULT_TOKEN"
           echo "::add-mask::$AWS_ACCESS_KEY_ID"
           echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
-        working-directory: .
+
+          # 5. Export as step outputs (scoped to this step only)
+          #    Use GITHUB_OUTPUT instead of GITHUB_ENV to limit exposure
+          echo "vault_token=$VAULT_TOKEN"         >> "$GITHUB_OUTPUT"
+          echo "aws_access_key_id=$AWS_ACCESS_KEY_ID"     >> "$GITHUB_OUTPUT"
+          echo "aws_secret_access_key=$AWS_SECRET_ACCESS_KEY" >> "$GITHUB_OUTPUT"
+
       - name: "⏳ Wait for AWS Credential Propagation"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.vault.outputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.vault.outputs.aws_secret_access_key }}
         run: |
           echo "Waiting for dynamic IAM user to propagate..."
-          sleep 10
-          aws sts get-caller-identity
+          for i in $(seq 1 8); do
+            if aws sts get-caller-identity; then
+              echo "✅ Credentials verified on attempt $i"
+              break
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+            if [ "$i" -eq 8 ]; then
+              echo "❌ Credentials never propagated after 40s"
+              exit 1
+            fi
+          done
+
+      - name: Terraform Format Check
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.vault.outputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.vault.outputs.aws_secret_access_key }}
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.vault.outputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.vault.outputs.aws_secret_access_key }}
+        run: terraform validate
+
       - name: Terraform Init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.vault.outputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.vault.outputs.aws_secret_access_key }}
         run: terraform init -input=false
+
       - name: Terraform Plan
-        run: terraform plan -input=false -var="vault_address=${{ env.VAULT_ADDR }}"
+        id: plan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.vault.outputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.vault.outputs.aws_secret_access_key }}
+          # VAULT_ADDR already set at job level; Terraform reads it via TF_VAR_
+          TF_VAR_vault_address: ${{ env.VAULT_ADDR }}
+        run: terraform plan -input=false -out=tfplan
+
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: terraform apply -auto-approve -input=false -var="vault_address=${{ env.VAULT_ADDR }}"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.vault.outputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.vault.outputs.aws_secret_access_key }}
+          TF_VAR_vault_address: ${{ env.VAULT_ADDR }}
+        # Apply the saved plan — no re-plan, no drift between plan and apply
+        run: terraform apply -auto-approve -input=false tfplan
 
+      - name: "🔒 Revoke Vault Token"
+        if: always()
+        env:
+          VAULT_TOKEN: ${{ steps.vault.outputs.vault_token }}
+        run: |
+          if [ -n "$VAULT_TOKEN" ] && [ "$VAULT_TOKEN" != "null" ]; then
+            curl -sS -X POST "$VAULT_ADDR/v1/auth/token/revoke-self" \
+              -H "X-Vault-Token: $VAULT_TOKEN" && echo "✅ Vault token revoked" \
+              || echo "⚠️ Failed to revoke Vault token (non-fatal)"
+          fi

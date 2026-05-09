@@ -1,0 +1,41 @@
+# WHY THIS EXISTS:
+# By applying TLS termination at the Ingress level, we offload SSL decryption
+# from the application pods, centralising certificate management. This prevents
+# developers from having to bake certs into containers, reducing security risks.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: voting-app-ingress
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  rules:
+    - host: vote.ai-log.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vote
+                port:
+                  number: 5000
+    - host: result.ai-log.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: result
+                port:
+                  number: 5001
+  tls:
+    - hosts:
+        - vote.ai-log.local
+        - result.ai-log.local
+      secretName: voting-app-tls

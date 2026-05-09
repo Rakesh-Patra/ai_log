@@ -1,0 +1,62 @@
+# WHY THIS EXISTS:
+# A Grafana dashboard you have to manually look at is not monitoring — it's
+# archaeology. On-call engineers are asleep. Alerts wake them. The difference
+# between a 2-minute incident and a 2-hour incident is whether an alert fires.
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-log-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: pod-health
+      rules:
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            runbook: "https://github.com/Rakesh-Patra/ai_log/blob/main/docs/runbooks/pod-crashloop.md"
+
+        - alert: PodOOMKilled
+          expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          for: 0m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.pod }} was OOMKilled — increase memory limit"
+            # WHY: OOMKill means limits are set too low. Fix: raise limit or reduce app memory.
+
+        - alert: PVCAlmostFull
+          expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.85
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "PVC {{ $labels.persistentvolumeclaim }} is 85% full"
+            # WHY: PVC full = pod eviction = data loss. Fix: expand PVC or clean old data.
+
+    - name: vault-health
+      rules:
+        - alert: VaultSealed
+          expr: vault_core_unsealed == 0
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "Vault is sealed — all secret reads will fail"
+            runbook: "docs/runbooks/vault-sealed.md"
+            # WHY: Vault seals itself on restart. Without auto-unseal, every EC2 reboot
+            #      causes a full outage until someone manually runs vault operator unseal.
+
+    - name: cost-awareness
+      rules:
+        - alert: NamespaceCPUOvercommit
+          expr: |
+            sum(kube_resourcequota{resource="requests.cpu",type="used"}) by (namespace)
+            /
+            sum(kube_resourcequota{resource="requests.cpu",type="hard"}) by (namespace) > 0.9
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: "Namespace {{ $labels.namespace }} CPU requests at 90% of quota"
+            # WHY: Overcommit → throttling → slow response times under load.

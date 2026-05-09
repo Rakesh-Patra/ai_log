@@ -36,13 +36,28 @@ spec:
         ports:
         - containerPort: 8080
           name: vote
+        # Conservative for t2.micro (1 vCPU, 1GB RAM shared across all services)
         resources:
           requests:
-            cpu: 100m
-            memory: 128Mi
+            cpu: 50m
+            memory: 64Mi
           limits:
-            cpu: 500m
+            cpu: 200m
             memory: 256Mi
+        # Probes: K8s auto-restarts unhealthy pods
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true

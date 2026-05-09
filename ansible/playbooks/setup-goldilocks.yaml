@@ -1,0 +1,27 @@
+---
+# WHY THIS EXISTS:
+# Goldilocks provides 'Right-Sizing' recommendations. It creates VPA 
+# objects in recommendation-mode and visualizes them. This is the 
+# 'Optimization' part of FinOps—ensuring you don't over-provision.
+
+- name: "Install Goldilocks for Resource Optimization"
+  hosts: k3s
+  become: true
+  tasks:
+    - name: "Add Fairwinds Helm repository"
+      kubernetes.core.helm_repository:
+        name: fairwinds
+        repo_url: https://charts.fairwinds.com/stable
+
+    - name: "Install Goldilocks via Helm"
+      kubernetes.core.helm:
+        name: goldilocks
+        chart_ref: fairwinds/goldilocks
+        namespace: goldilocks
+        create_namespace: true
+        values:
+          dashboard:
+            enabled: true
+            service:
+              type: NodePort
+              nodePort: 32000 # Access via http://<EC2_IP>:32000

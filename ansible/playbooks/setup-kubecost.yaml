@@ -1,0 +1,33 @@
+---
+# WHY THIS EXISTS:
+# Kubecost provides real-time dollar-value cost allocation for K8s.
+# It allows us to see exactly which namespace, deployment, or team is 
+# consuming the AWS budget. This is the primary visibility tool for FinOps.
+
+- name: "Install Kubecost (Cost Analyzer)"
+  hosts: k3s
+  become: true
+  tasks:
+    - name: "Add Kubecost Helm repository"
+      kubernetes.core.helm_repository:
+        name: kubecost
+        repo_url: https://kubecost.github.io/cost-analyzer/
+
+    - name: "Install Kubecost via Helm"
+      kubernetes.core.helm:
+        name: kubecost
+        chart_ref: kubecost/cost-analyzer
+        namespace: kubecost
+        create_namespace: true
+        values:
+          kubecostToken: "cm9vdEBhaS1sb2cubG9jYWw=" # Default free tier token
+          prometheus:
+            enabled: false  # Using our existing monitoring stack
+          global:
+            prometheus:
+              enabled: false
+              fqdn: http://prometheus-operated.monitoring.svc:9090
+          # Kubecost requires a small amount of persistent storage for metrics
+          persistentVolume:
+            size: 5Gi
+            storageClass: "local-path" # K3s default

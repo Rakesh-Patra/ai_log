@@ -1,0 +1,20 @@
+# WHY THIS EXISTS:
+# Without HTTPS, credentials sent to vote/result are plaintext on the network.
+# A man-in-the-middle on any shared WiFi sees everything. Most companies fail
+# their first security audit because of this. cert-manager automates renewal —
+# manual certificate rotation causes 30% of production outages at mid-size companies.
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@ai-log.local # Replace with valid ACME_EMAIL in production
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            class: traefik

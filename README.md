@@ -1,200 +1,107 @@
-# Kubernetes Voting App — Production-Grade DevSecOps on Kind
+# 🗳️ AI-Powered Kubernetes DevSecOps Platform
 
-End-to-end **multi-service voting application** (Vote → Redis → Worker → Postgres → Result) deployed on **Kubernetes (kind)**, hardened with a **5-day DevSecOps curriculum** covering threat modeling, Git security, IaC scanning, container hardening, and Kubernetes zero-trust. An optional **AI SRE Agent** (`agent/`) provides autonomous cluster observability using LangGraph, Gemini, and MCP tooling.
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-K3s-326CE5?logo=kubernetes&logoColor=white)](https://k3s.io/)
+[![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform)](https://terraform.io/)
+[![Python](https://img.shields.io/badge/Agent-Python_3.12-3776AB?logo=python&logoColor=white)](https://python.org/)
+[![GitHub Actions](https://img.shields.io/badge/CI/CD-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-EF7B4D?logo=argo&logoColor=white)](https://argoproj.github.io/argo-cd/)
 
-## What's in this repo
-
-| Area | Description | Images (Docker Hub) |
-|------|-------------|---------------------|
-| **Microservices** | `vote/` (Python), `worker/` (.NET), `result/` (Node.js) | `patracoder/examplevotingapp_vote:v1.0`<br>`patracoder/examplevotingapp_result:v1.0`<br>`patracoder/examplevotingapp_worker:v1.0` |
-| **Kubernetes** | `k8s/` — hardened manifests, kind-oriented setup | — |
-| **Platform** | kind, kubectl, Gateway API, Envoy, Argo CD | — |
-| **Secret Management** | HashiCorp Vault + External Secrets Operator (ESO) | — |
-| **AI SRE Agent** | `agent/` — FastAPI, MCP, LangGraph, Guardrails AI | `patracoder/k8s-ai-agent:v1.0` |
-
-## Architecture
-
-![Architecture diagram](k8s-kind-voting-app.png)
-
-```
-┌──────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ┌────────┐
-│  Vote UI │────▸│ Redis │────▸│ Worker │────▸│ Postgres │◂────│ Result │
-│ (Python) │     │       │     │ (.NET) │     │          │     │(Node)  │
-└──────────┘     └───────┘     └────────┘     └──────────┘     └────────┘
-       ▲                                            ▲
-       │              ┌──────────────┐              │
-       └──────────────│  Vault (ESO) │──────────────┘
-                      │ Secret Sync  │
-                      └──────────────┘
-```
-
-## Secret Management (Vault + External Secrets Operator)
-
-Secrets are **never hardcoded** in manifests or committed to Git. The architecture follows a production-grade pattern:
-
-1. **Vault** (Source of Truth) — Stores all DB and Redis credentials at `secret/data/db-credentials` and `secret/data/redis-credentials`.
-2. **External Secrets Operator** — Syncs Vault secrets into native Kubernetes `Secret` objects (`db-secret`, `redis-secret`) every hour.
-3. **Pods** — Consume credentials via standard `envFrom: secretRef`, requiring zero application-level Vault code.
-
-Key files:
-- `k8s/external-secrets.yaml` — `SecretStore` + `ExternalSecret` CRDs
-- `k8s/app-policy.hcl` — Vault read-only policy for the app role
-
-## DevSecOps — 5-Day Implementation
-
-> Full status tracker: [`DEVSECOPS_STATUS.md`](DEVSECOPS_STATUS.md)
-
-| Day | Focus | Key Deliverables |
-|-----|-------|------------------|
-| **1** | Threat Modeling | STRIDE analysis, [`THREAT_MODEL.md`](THREAT_MODEL.md) |
-| **2** | Git Security | Gitleaks, pre-commit hooks, Dependabot, CODEOWNERS |
-| **3** | IaC Security | Checkov CI, Terraform OIDC auth, Vault JWT, encrypted S3 state |
-| **4** | Container Security | Multi-stage builds, non-root, Trivy CVE, Cosign signing, [`run-hardened.sh`](run-hardened.sh) |
-| **5** | Kubernetes Security | RBAC, NetworkPolicies, Kyverno, PSA, Vault + ESO, etcd encryption, audit logging |
-
-## Kubernetes Security Highlights
-
-- **Namespaces with Pod Security Admission (PSA)** — `restricted` enforcement on all namespaces (`k8s/namespaces.yaml`)
-- **Per-component ServiceAccounts** — `vote-sa`, `result-sa`, `worker-sa`, `db-sa`, `redis-sa` with `automountServiceAccountToken: false` (`k8s/serviceaccount-voting-app.yaml`)
-- **Zero-Trust NetworkPolicies** — Default-deny + per-service allow rules (`k8s/networkpolicies.yaml`)
-- **Kyverno Policies** — Enforce non-root, resource limits, no privilege escalation, image signing verification (`k8s/kyverno-policies.yaml`)
-- **Pod Security Contexts** — All pods: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ["ALL"]`, `seccompProfile: RuntimeDefault`
-- **Gateway API** — Envoy-backed routing for `/vote` and `/result` endpoints
-- **HPA + PDB** — Horizontal Pod Autoscaler and Pod Disruption Budgets for resilience (`k8s/hpa-pdb.yaml`)
-
-## AI SRE Agent
-
-An autonomous Kubernetes observability agent deployed in the `voting-agent` namespace with read-only RBAC:
-
-- **Stack:** FastAPI + LangGraph + Google Gemini + Guardrails AI
-- **MCP Integration:** Exposes `ask_k8s_assistant` tool for IDE integration (Cursor, Claude, etc.)
-- **Features:** Natural language cluster queries, rate limiting, conversation history, input/output guardrails, SSE streaming
-- **Docs:** [`agent/README.md`](agent/README.md)
-
-## Cloud Architecture Options
-
-This platform is designed to be **cluster-agnostic**. You can deploy it to a cost-effective K3s cluster today and migrate to a managed EKS cluster tomorrow with zero code changes.
-
-### 1. Cost-Effective (Learner) Approach: K3s on EC2
-**Current implementation: ~$15 - $30 / month**
-Designed for learners, this architecture provides a real Kubernetes environment without the high cost of managed services.
-- **Compute:** A single `m7i-flex.large` EC2 instance running **K3s**.
-- **Automation:** Fully automated via **Terraform** and **GitHub Actions**.
-- **CI/CD:** Features **"Push-to-Host"**—any code push to `main` automatically deploys to the public IP via AWS SSM.
-- **Code:** See `agent/terraform/` for the infrastructure and `.github/workflows/terraform.yaml` for the pipeline.
-
-### 2. Production Approach: AWS EKS + Managed Services
-**Scale-Ready: ~$200+ / month**
-Designed for enterprise environments. The **AI SRE Agent** and all **K8s manifests** are 100% compatible with EKS.
-- **Compute:** **Amazon EKS** with multi-AZ node groups.
-- **Autoscaling:** Integrated with **HPA** (`k8s/hpa-pdb.yaml`) and Cluster Autoscaler.
-- **Networking:** Support for AWS Load Balancer Controller (ALB).
-- **Security:** Ready for IAM Roles for Service Accounts (IRSA).
+> **Production-approach voting app with an autonomous AI SRE agent, 
+> GitOps self-healing, 7-layer DevSecOps pipeline, LangSmith observability, 
+> and $0 AWS infrastructure using K3s + m7i-flex.large.**
 
 ---
 
-## Quick Start (Local)
+## 🏗️ Architecture (Phase 3)
 
-### Option 1: Kubernetes (kind) — Recommended
+```
+                     ┌──────────────────────────────────────────────────────────────┐
+                     │               GitHub Actions CI/CD Pipeline                  │
+                     │   Gitleaks → Hadolint → Build → Trivy → Cosign → Terraform   │
+                     └────────────────────────┬─────────────────────────────────────┘
+                                              │
+                     ┌────────────────────────▼─────────────────────────────────────┐
+                     │          AWS EC2 m7i-flex.large ($0 — free credits)          │
+                     │  ┌───────────────────────────────────────────────────────┐   │
+                     │  │                    K3s Cluster                        │   │
+                     │  │                                                      │   │
+                     │  │  ┌──────────┐   ┌─────────┐   ┌─────────────┐        │   │
+                     │  │  │  ArgoCD  │◄──│ Git Repo│──▶│ AI SRE Agent│        │   │
+                     │  │  │ (GitOps) │   └─────────┘   │ (LangGraph) │        │   │
+                     │  │  └────┬─────┘                 └──────▲──────┘        │   │
+                     │  │       │                              │               │   │
+                     │  │  ┌────▼─────┐   ┌───────┐   ┌────────▼─────────┐     │   │
+                     │  │  │ App Pods │──▶│ Loki  │──▶│ Webhook Endpoint │     │   │
+                     │  │  │ (Vote/etc)│   └───────┘   └────────▲─────────┘     │   │
+                     │  │  └──────────┘                        │               │   │
+                     │  │       ▲                              │               │   │
+                     │  │       └──────────────────────────────┘               │   │
+                     │  │          (Action: Restart/Scale Down)                │   │
+                     │  │                                                      │   │
+                     │  │  ┌──────────┐  ┌─────────┐  ┌──────────┐             │   │
+                     │  │  │Prometheus│──▶│ Alertmgr│──┘ (Trigger)             │   │
+                     │  │  └──────────┘  └─────────┘                           │   │
+                     │  └───────────────────────────────────────────────────────┘   │
+                     └──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ✨ Autonomous AI SRE & FinOps
+
+This platform features **Sentinel-Ops**, a LangGraph-powered AI agent that acts as an autonomous L3 engineer.
+
+| Feature | How It Works | Why It Matters |
+|---------|--------------|----------------|
+| **Auto-Triage** | Alertmanager → Webhook → Agent | 2am incidents are triaged in seconds, not hours. |
+| **Log Analysis** | Agent queries Loki via OTLP | Finds the "needle in the haystack" stack trace automatically. |
+| **FinOps Automation** | Agent scales idle pods to 0 | Eliminates cloud waste by identifying unused dev environments. |
+| **GitOps Integrity** | ArgoCD + Self-Healing | Prevents manual drift; Git remains the source of truth. |
+
+---
+
+## 🔒 Phase 3 — Autonomous AIOps & GitOps
+
+| Feature | Implementation | Why it matters |
+|---|---|---|
+| **AI Webhook** | FastAPI + LangGraph | Connects Prometheus alerts to autonomous action. |
+| **Loki Tools** | Python + requests | Allows the agent to "see" application errors. |
+| **FinOps Scaling** | `kubectl scale --replicas=0` | Active cost-cutting by scaling down idle resources. |
+| **ArgoCD** | Helm + App-of-Apps | Implements true GitOps with auto-pruning. |
+| **Kubecost** | Allocation & API | Real-time dollar-value cost tracking per namespace. |
+| **Goldilocks** | Right-sizing Dashboard | Visualizes VPA recommendations for perfect pod sizing. |
+
+
+### 🧪 How to Test Autonomous Remediation
+1. **Simulate a Crash**: Delete a critical config or manually scale a deployment to 10 replicas.
+2. **Watch ArgoCD**: Observe the ArgoCD UI as it detects the drift and force-syncs the cluster back to the Git state.
+3. **Simulate a Budget Alert**: Send a mock JSON payload to the `/agent/webhook/alertmanager` endpoint indicating high cost.
+4. **Watch the AI**: Check the agent logs as it queries Prometheus, identifies the `worker` namespace as idle, and scales the deployment to 0.
+
+---
+
+## 🚀 Quick Start (Phase 3)
 
 ```bash
-# 1. Create the kind cluster
-kind create cluster --config k8s/kind-config.yaml --name voting-app-stable
+# 1. Setup GitOps
+ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/setup-argocd.yaml
 
-# 2. Apply namespaces and RBAC
-kubectl apply -f k8s/namespaces.yaml
-kubectl apply -f k8s/serviceaccount-voting-app.yaml
+# 2. Setup AI Tools
+# Ensure LOKI_URL and PROMETHEUS_URL are set in the agent's .env
 
-# 3. Install Vault and External Secrets Operator (via Helm)
-helm install vault hashicorp/vault -n default
-helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace
-
-# 4. Configure Vault secrets and apply ESO sync
-kubectl apply -f k8s/external-secrets.yaml
-
-# 5. Deploy the application stack
-kubectl apply -f k8s/deployment-db.yaml
-kubectl apply -f k8s/redis-deployment.yaml
-kubectl apply -f k8s/vote-deployment.yaml
-kubectl apply -f k8s/result-deployment.yaml
-kubectl apply -f k8s/worker-deployment.yaml
-
-# 6. Apply services
-kubectl apply -f k8s/db-service.yaml
-kubectl apply -f k8s/redis-service.yaml
-kubectl apply -f k8s/vote-service.yaml
-kubectl apply -f k8s/result-service.yaml
-
-# 7. Apply security policies
-kubectl apply -f k8s/networkpolicies.yaml
+# 3. Trigger manual triage (Example)
+curl -X POST http://<AGENT_IP>/agent/webhook/alertmanager \
+     -d '{"alerts": [{"labels": {"alertname": "PodCrashLooping", "pod": "vote-app-xyz"}}] }'
 ```
 
-### Option 2: Docker Compose (Development only)
+---
 
-```bash
-# Copy environment file
-cp agent/.env.example agent/.env  # Edit with your values
+## 🎯 Phase 2 & 3 Evolution
 
-# Run with prebuilt images
-docker compose -f docker-compose.images.yml up
+This project evolved from a standard DevSecOps pipeline into a self-healing, cost-aware autonomous platform. Choosing **Loki over ELK** and **K3s over EKS** were critical design decisions to maintain a **$0 running cost** on an 8GB RAM footprint while delivering enterprise-grade observability.
 
-# Or build from source
-docker compose up --build
-```
+---
 
-### Option 3: Hardened Docker (Agent only)
-
-```bash
-# Runs with: read-only FS, dropped capabilities, non-root, memory limits
-bash run-hardened.sh
-```
-
-## Observability
-
-![Grafana diagram](grafana.png)
-![Prometheus diagram](prometheus.png)
-
-## Repository Structure
-
-```
-├── agent/                  # AI SRE Agent (FastAPI + LangGraph)
-│   ├── app/                # Application code
-│   ├── k8s/                # Agent-specific K8s manifests
-│   ├── terraform/          # IaC for AWS + Vault
-│   └── skills/             # MCP skill definitions
-├── k8s/                    # Kubernetes manifests (hardened)
-│   ├── external-secrets.yaml    # Vault ↔ K8s secret sync
-│   ├── networkpolicies.yaml     # Zero-trust network rules
-│   ├── serviceaccount-voting-app.yaml  # RBAC
-│   ├── kyverno-policies.yaml    # Admission policies
-│   ├── namespaces.yaml          # PSA-enforced namespaces
-│   └── *-deployment.yaml        # Hardened workloads
-├── vote/                   # Vote microservice (Python)
-├── result/                 # Result microservice (Node.js)
-├── worker/                 # Worker microservice (.NET)
-├── .github/                # CI/CD workflows + Dependabot
-├── DEVSECOPS_STATUS.md     # 5-day implementation tracker
-├── THREAT_MODEL.md         # STRIDE threat analysis
-├── PRODUCTION_GUIDE.md     # Production deployment guide
-└── run-hardened.sh         # Hardened Docker runtime script
-```
-
-## Security Before You Push to GitHub
-
-- Read [`SECURITY.md`](SECURITY.md) and follow the publishing checklist.
-- **`agent/.env` is gitignored** — it must stay local. Only `agent/.env.example` (placeholders) belongs in the repo.
-- Before `git add`, run:
-
-  ```bash
-  git status
-  git check-ignore -v agent/.env
-  ```
-
-- **Do not commit**: API keys, database passwords, kubeconfig files, or any token/secret values.
-- **If a secret was ever committed**, rotate it immediately and treat the old value as compromised.
-
-## Credits
-
-Inspired by the classic **Docker example-voting-app** architecture and extended with DevSecOps, Kubernetes security, and AI-powered observability.
-
-**Aapke DevOps Wale Bhaiya** — [TrainWithShubham](https://www.trainwithshubham.com/)
+## 📚 Credits & Built By
+- **Curriculum**: [Abhishek Veeramalla's DevSecOps-Zero-to-Hero](https://github.com/iam-veeramalla)
+- **Built by**: [Rakesh Patra](https://linkedin.com/in/rakesh-patra) 🇮🇳

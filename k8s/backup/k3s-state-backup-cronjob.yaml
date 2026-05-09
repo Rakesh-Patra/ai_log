@@ -1,0 +1,52 @@
+# WHY THIS EXISTS:
+# If EC2 is terminated, you can restore the entire cluster state
+# without re-running Ansible from scratch. K3s stores cluster state
+# in SQLite. This backs it up directly.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k3s-state-backup
+  namespace: kube-system
+spec:
+  schedule: "0 1 * * *" # 01:00 UTC daily
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          hostNetwork: true
+          containers:
+          - name: k3s-backup
+            image: amazon/aws-cli:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              cp /host/var/lib/rancher/k3s/server/db/state.db /tmp/k3s-$(date +%Y%m%d).db
+              aws s3 cp /tmp/k3s-*.db s3://$BACKUP_BUCKET/k3s/
+            volumeMounts:
+            - name: k3s-db
+              mountPath: /host/var/lib/rancher/k3s/server/db
+              readOnly: true
+            env:
+            - name: BACKUP_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: BUCKET_NAME
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          volumes:
+          - name: k3s-db
+            hostPath:
+              path: /var/lib/rancher/k3s/server/db
+              type: Directory
+          restartPolicy: OnFailure

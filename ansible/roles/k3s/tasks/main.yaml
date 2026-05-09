@@ -1,0 +1,54 @@
+---
+# k3s/tasks/main.yaml — Install K3s (idempotent)
+
+- name: "Check if K3s is already installed"
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: "Install K3s"
+  ansible.builtin.shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="{{ k3s_version }}" sh -s - \
+      --disable traefik \
+      --write-kubeconfig-mode 644
+  args:
+    creates: /usr/local/bin/k3s
+  when: not k3s_binary.stat.exists
+  notify: restart k3s
+
+- name: "Wait for K3s to be ready"
+  ansible.builtin.command: k3s kubectl get nodes
+  register: k3s_ready
+  retries: 30
+  delay: 5
+  until: "'Ready' in k3s_ready.stdout"
+  changed_when: false
+
+- name: "Create .kube directory for {{ kubectl_user }}"
+  ansible.builtin.file:
+    path: "/home/{{ kubectl_user }}/.kube"
+    state: directory
+    owner: "{{ kubectl_user }}"
+    group: "{{ kubectl_user }}"
+    mode: '0700'
+
+- name: "Copy kubeconfig for {{ kubectl_user }}"
+  ansible.builtin.copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "/home/{{ kubectl_user }}/.kube/config"
+    remote_src: true
+    owner: "{{ kubectl_user }}"
+    group: "{{ kubectl_user }}"
+    mode: '0600'
+
+- name: "Set KUBECONFIG in profile"
+  ansible.builtin.lineinfile:
+    path: "/home/{{ kubectl_user }}/.bashrc"
+    line: "export KUBECONFIG=/home/{{ kubectl_user }}/.kube/config"
+    state: present
+
+- name: "Update kubeconfig server address to external IP"
+  ansible.builtin.replace:
+    path: "/home/{{ kubectl_user }}/.kube/config"
+    regexp: 'server: https://127.0.0.1:6443'
+    replace: "server: https://{{ ansible_host }}:6443"

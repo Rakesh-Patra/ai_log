@@ -1,0 +1,61 @@
+# WHY THIS EXISTS:
+# User reports: "The voting page is slow." Grafana shows CPU is normal.
+# Logs show no errors. Without distributed tracing, you don't know if the
+# slowness is in Vote → Redis → Worker → PostgreSQL.
+# OpenTelemetry adds trace IDs that let you see the entire request path
+# and find the bottleneck in under 2 minutes instead of 2 hours.
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: otel-collector
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector:0.87.0
+        command:
+        - "/otelcol"
+        - "--config=/conf/otel-collector-config.yaml"
+        ports:
+        - containerPort: 4317 # OTLP gRPC
+        - containerPort: 4318 # OTLP HTTP
+        volumeMounts:
+        - name: otel-collector-config-vol
+          mountPath: /conf
+      volumes:
+      - name: otel-collector-config-vol
+        configMap:
+          name: otel-collector-conf
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-conf
+  namespace: monitoring
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+          http:
+    exporters:
+      otlp:
+        endpoint: "tempo:4317"
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [otlp]

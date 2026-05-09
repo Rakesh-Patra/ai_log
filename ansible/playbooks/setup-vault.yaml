@@ -1,0 +1,30 @@
+---
+# ════════════════════════════════════════════════════════════
+# setup-vault.yaml — Install and configure HashiCorp Vault
+# Idempotent: skips init if already initialized.
+# ════════════════════════════════════════════════════════════
+
+- name: "Install and configure HashiCorp Vault"
+  hosts: k3s
+  become: true
+  vars:
+    vault_version: "1.15.6"
+    vault_addr: "http://127.0.0.1:8200"
+    vault_config_dir: /etc/vault.d
+    vault_data_dir: /opt/vault/data
+
+  roles:
+    - vault
+
+  post_tasks:
+    - name: "Check Vault status"
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/sys/health"
+        method: GET
+        status_code: [200, 429, 472, 473, 501, 503]
+      register: vault_health
+      ignore_errors: true
+
+    - name: "Show Vault status"
+      ansible.builtin.debug:
+        msg: "Vault is {{ 'initialized' if vault_health.status in [200, 429] else 'not yet initialized — run vault operator init' }}"

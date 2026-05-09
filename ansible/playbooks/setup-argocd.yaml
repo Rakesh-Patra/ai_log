@@ -1,0 +1,66 @@
+---
+# WHY THIS EXISTS:
+# Manual 'kubectl apply' is the primary source of configuration drift in
+# production. GitOps ensures the cluster state ALWAYS matches the Git repo.
+# ArgoCD provides automated pruning and self-healing, so if someone manually
+# deletes a deployment, ArgoCD puts it back in seconds.
+
+- name: "Install ArgoCD and Configure GitOps"
+  hosts: k3s
+  become: true
+  tasks:
+    - name: "Add ArgoCD Helm repository"
+      kubernetes.core.helm_repository:
+        name: argo
+        repo_url: https://argoproj.github.io/argo-helm
+
+    - name: "Install ArgoCD via Helm"
+      kubernetes.core.helm:
+        name: argocd
+        chart_ref: argo/argo-cd
+        namespace: argocd
+        create_namespace: true
+        values:
+          server:
+            extraArgs:
+              - --insecure
+      register: argocd_install
+
+    - name: "Wait for ArgoCD server to be ready"
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: argocd-server
+        namespace: argocd
+      register: server_status
+      until: >
+        server_status.resources is defined and
+        server_status.resources | length > 0 and
+        server_status.resources[0].status.readyReplicas is defined and
+        server_status.resources[0].status.readyReplicas > 0
+      retries: 30
+      delay: 10
+
+    - name: "Apply Root Application (App of Apps)"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: ai-log-root
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/Rakesh-Patra/ai_log.git
+              targetRevision: HEAD
+              path: k8s/
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: default
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true

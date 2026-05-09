@@ -1,0 +1,23 @@
+# WHY THIS EXISTS:
+# This automatically connects Grafana to Loki without human intervention.
+# It allows the team to query logs using LogQL side-by-side with Prometheus
+# metrics in the same dashboard, making correlation instant.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |-
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki:3100
+        isDefault: false
+        version: 1
+        editable: false

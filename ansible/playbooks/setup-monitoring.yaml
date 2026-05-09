@@ -1,0 +1,58 @@
+---
+# ════════════════════════════════════════════════════════════
+# setup-monitoring.yaml — Prometheus + Grafana via Helm
+# Conservative resource limits for t2.micro (1 vCPU, 1GB RAM)
+# ════════════════════════════════════════════════════════════
+
+- name: "Install monitoring stack"
+  hosts: k3s
+  become: true
+  become_user: ubuntu
+  vars:
+    monitoring_namespace: monitoring
+
+  tasks:
+    - name: "Create monitoring namespace"
+      ansible.builtin.command: kubectl create namespace {{ monitoring_namespace }}
+      register: ns_result
+      changed_when: "'created' in ns_result.stdout"
+      failed_when: "ns_result.rc != 0 and 'already exists' not in ns_result.stderr"
+
+    - name: "Add Prometheus Helm repo"
+      ansible.builtin.command: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+      changed_when: false
+
+    - name: "Update Helm repos"
+      ansible.builtin.command: helm repo update
+      changed_when: false
+
+    - name: "Check if Prometheus is already installed"
+      ansible.builtin.command: helm status prometheus -n {{ monitoring_namespace }}
+      register: prom_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Install Prometheus stack"
+      ansible.builtin.command: >
+        helm install prometheus prometheus-community/kube-prometheus-stack
+        --namespace {{ monitoring_namespace }}
+        --set prometheus.prometheusSpec.resources.requests.memory=128Mi
+        --set prometheus.prometheusSpec.resources.requests.cpu=50m
+        --set prometheus.prometheusSpec.resources.limits.memory=256Mi
+        --set prometheus.prometheusSpec.resources.limits.cpu=200m
+        --set grafana.resources.requests.memory=64Mi
+        --set grafana.resources.requests.cpu=50m
+        --set grafana.resources.limits.memory=128Mi
+        --set grafana.resources.limits.cpu=100m
+        --set grafana.service.type=NodePort
+        --set grafana.service.nodePort=30300
+      when: prom_status.rc != 0
+
+    - name: "Show monitoring status"
+      ansible.builtin.command: kubectl get pods -n {{ monitoring_namespace }}
+      register: mon_pods
+      changed_when: false
+
+    - name: "Display monitoring pods"
+      ansible.builtin.debug:
+        msg: "{{ mon_pods.stdout_lines }}"

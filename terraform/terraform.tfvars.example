@@ -1,0 +1,23 @@
+# ════════════════════════════════════════════════════════════
+# terraform.tfvars.example — Copy to terraform.tfvars
+#   cp terraform.tfvars.example terraform.tfvars
+# Then edit with your values. NEVER commit terraform.tfvars!
+# ════════════════════════════════════════════════════════════
+
+# YOUR IP — run: curl -s ifconfig.me && echo "/32"
+admin_cidr = "YOUR_IP/32"
+
+# Vault URL — update with your EC2 public IP after first apply
+vault_address = "http://VAULT_IP:8200"
+
+# AWS key pair — create one in AWS Console → EC2 → Key Pairs
+key_pair_name = "your-key-pair-name"
+
+# Instance type:
+#   AWS account after  Jul 15 2025 → m7i-flex.large (FREE via $200 credits)
+#   AWS account before Jul 15 2025 → t3.small (~$15/mo, minimum viable)
+instance_type = "m7i-flex.large"
+
+volume_size   = 20            # 20GB EBS
+aws_region    = "ap-south-1"  # Mumbai — low latency from India
+environment   = "dev"

@@ -35,11 +35,24 @@ spec:
             name: redis-secret
         resources:
           requests:
-            cpu: 100m
-            memory: 128Mi
+            cpu: 50m
+            memory: 64Mi
           limits:
-            cpu: 500m
+            cpu: 200m
             memory: 256Mi
+        # Worker is a background process — use tcpSocket probe on a known port
+        # or exec probe to check process health
+        livenessProbe:
+          exec:
+            command: ["pgrep", "-f", "Worker.dll"]
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["pgrep", "-f", "Worker.dll"]
+          initialDelaySeconds: 5
+          periodSeconds: 10
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true

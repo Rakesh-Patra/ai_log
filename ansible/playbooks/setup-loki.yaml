@@ -1,0 +1,33 @@
+---
+# WHY THIS EXISTS:
+# ELK needs ~4GB RAM minimum. Your EC2 has 8GB total, shared with K3s + Vault
+# + 5 app services. Loki is label-based (like Prometheus), uses 300MB RAM,
+# integrates with Grafana, and is maintained by Grafana Labs. 
+# Installing Loki programmatically ensures logs are aggregated out of the box.
+
+- name: "Install Loki Stack (Loki + Promtail)"
+  hosts: k3s
+  become: true
+  tasks:
+    - name: "Add Grafana Helm repository"
+      kubernetes.core.helm_repository:
+        name: grafana
+        repo_url: https://grafana.github.io/helm-charts
+
+    - name: "Install Loki stack via Helm"
+      kubernetes.core.helm:
+        name: loki
+        chart_ref: grafana/loki-stack
+        namespace: monitoring
+        create_namespace: true
+        values:
+          loki:
+            enabled: true
+            persistence:
+              enabled: true
+              size: 10Gi
+          promtail:
+            enabled: true
+            # auto-collects all K8s pod logs
+          grafana:
+            enabled: false

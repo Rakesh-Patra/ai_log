@@ -1,0 +1,34 @@
+# Gap 2 CLOSED: etcd Encryption at Rest
+# Encrypts all Kubernetes Secrets stored in etcd using AES-CBC.
+#
+# ⚠️ SECRET ROTATION:
+#   - Generate a real 32-byte key: head -c 32 /dev/urandom | base64
+#   - Replace the placeholder below BEFORE creating the cluster
+#   - Store the real key in your password manager / Vault
+#   - This file is in .gitignore — never commit with real keys
+#
+# Verify encryption after cluster creation:
+#   kubectl create secret generic test-secret --from-literal=key=value
+#   kubectl exec -it -n kube-system \
+#     $(kubectl get pods -n kube-system -l component=etcd -o name) -- \
+#     etcdctl get /registry/secrets/default/test-secret \
+#     --cacert /etc/kubernetes/pki/etcd/ca.crt \
+#     --cert /etc/kubernetes/pki/etcd/peer.crt \
+#     --key /etc/kubernetes/pki/etcd/peer.key | hexdump -C | head
+#   ✅ Output should start with "k8s:enc:aescbc" (not plaintext)
+
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+      - secrets
+      - configmaps   # Also encrypt configmaps for extra safety
+    providers:
+      # Primary: AES-CBC encryption (active)
+      - aescbc:
+          keys:
+            - name: key1
+              secret: Fh9doTWB5pMhOBF5Gjde4GOLDweow35ID2PQ0Z1slGw=
+      # Fallback: identity (reads unencrypted legacy secrets)
+      # Remove after running: kubectl get secrets -A -o json | kubectl apply -f -
+      - identity: {}

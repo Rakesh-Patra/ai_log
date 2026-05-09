@@ -1,0 +1,36 @@
+---
+# common/tasks/main.yaml — Base system setup
+# Run on every playbook to ensure system is ready.
+
+- name: "Update apt cache"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: "Install base packages"
+  ansible.builtin.apt:
+    name:
+      - curl
+      - unzip
+      - jq
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - python3-pip
+    state: present
+
+- name: "Set timezone to Asia/Kolkata"
+  ansible.builtin.timezone:
+    name: Asia/Kolkata
+
+- name: "Ensure swap is disabled (K8s requirement)"
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: "Remove swap from fstab"
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '.*swap.*'
+    state: absent

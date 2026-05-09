@@ -1,0 +1,25 @@
+# WHY THIS EXISTS:
+# This is the 'Root Application' for GitOps. It tells ArgoCD to watch 
+# the k8s/ directory in this repository and ensure the cluster state 
+# exactly matches the manifests. This enables automated self-healing.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ai-log-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rakesh-Patra/ai_log.git
+    targetRevision: HEAD
+    path: k8s/
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

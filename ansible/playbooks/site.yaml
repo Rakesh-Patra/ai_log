@@ -1,0 +1,14 @@
+---
+# ════════════════════════════════════════════════════════════
+# site.yaml — Master playbook (imports all setup playbooks)
+# Usage: ansible-playbook playbooks/site.yaml
+# ════════════════════════════════════════════════════════════
+
+- name: "Phase 1: Base system setup"
+  ansible.builtin.import_playbook: setup-k3s.yaml
+
+- name: "Phase 2: HashiCorp Vault"
+  ansible.builtin.import_playbook: setup-vault.yaml
+
+- name: "Phase 3: Monitoring stack"
+  ansible.builtin.import_playbook: setup-monitoring.yaml

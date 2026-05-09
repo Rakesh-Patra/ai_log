@@ -1,0 +1,165 @@
+# ════════════════════════════════════════════════════════════
+# _docker-build.yaml — Reusable Docker build + security scan
+# Replaces 4 identical 100-line workflows with ONE reusable.
+# Callers pass service-specific inputs; this handles everything.
+# ════════════════════════════════════════════════════════════
+
+name: Reusable Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Service name (agent/vote/result/worker)"
+        required: true
+        type: string
+      context:
+        description: "Docker build context path"
+        required: true
+        type: string
+      dockerfile:
+        description: "Path to Dockerfile"
+        required: true
+        type: string
+      dockerhub_image:
+        description: "DockerHub image name"
+        required: true
+        type: string
+      ghcr_image:
+        description: "GHCR image name"
+        required: true
+        type: string
+      platforms:
+        description: "Target platforms"
+        required: true
+        type: string
+      has_pip_audit:
+        description: "Run pip-audit for Python services"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: "🐳 ${{ inputs.service }} — Build & Secure"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # GHCR push
+      id-token: write        # Cosign OIDC signing
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────
+      - name: "📥 Checkout code"
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      # ── 2. Multi-platform setup ──────────────────────────
+      - name: "⚙️ Set up QEMU"
+        uses: docker/setup-qemu-action@v3
+
+      # ── 3. Buildx ───────────────────────────────────────
+      - name: "⚙️ Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      # ── 4. Lint Dockerfile ───────────────────────────────
+      - name: "📋 Lint Dockerfile (Hadolint)"
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ inputs.dockerfile }}
+          failure-threshold: warning
+
+      # ── 5. Python SCA (only for Python services) ─────────
+      - name: "🛡️ Python dependency audit (pip-audit)"
+        if: inputs.has_pip_audit
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: ${{ inputs.context }}/requirements.txt
+          vulnerability-service: osv
+        continue-on-error: true  # Advisory: don't block on known-unfixed CVEs
+
+      # ── 6. Login to DockerHub (skip on PR) ───────────────
+      - name: "🔑 Login to DockerHub"
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── 7. Login to GHCR (skip on PR) ───────────────────
+      - name: "🔑 Login to GHCR"
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 8. Docker metadata (tags + labels) ───────────────
+      - name: "🏷️ Extract metadata"
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ inputs.dockerhub_image }}
+            ${{ inputs.ghcr_image }}
+          tags: |
+            type=raw,value=v1.0,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=ref,event=pr
+            type=sha,prefix=,format=short
+
+      # ── 9. Build and push (GHA cache) ────────────────────
+      - name: "🏗️ Build and push"
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ inputs.platforms }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 10. Build local image for CVE scanning ──────────
+      - name: "🔍 Build local scan image"
+        run: docker build -t ${{ inputs.service }}:scan ./${{ inputs.context }}
+
+      # ── 11. Trivy CVE scan — exit-code 1 BLOCKS pipeline
+      - name: "🔍 Scan for CVEs (Trivy)"
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ inputs.service }}:scan"
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          timeout: 10m
+
+      # ── 12. Install Cosign (skip on PR) ──────────────────
+      - name: "🔏 Install Cosign"
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      # ── 13. Sign image by DIGEST not tag (skip on PR) ────
+      - name: "🔏 Sign image (keyless OIDC)"
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          # WHY digest not tag: tags are mutable, digests are immutable.
+          # Signing a tag could verify the wrong image if someone pushes
+          # a new image to the same tag between build and sign.
+          cosign sign --yes "${{ inputs.dockerhub_image }}@${DIGEST}"
+          cosign sign --yes "${{ inputs.ghcr_image }}@${DIGEST}"

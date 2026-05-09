@@ -1,0 +1,40 @@
+# WHY THIS EXISTS:
+# Alerts are useless if they go nowhere. This configuration routes Critical
+# alerts to an on-call channel to wake people up, and Warning alerts to a
+# passive channel for investigation during business hours. Grouping and repeat
+# intervals prevent alert fatigue.
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+type: Opaque
+stringData:
+  alertmanager.yaml: |
+    global:
+      slack_api_url: "<SLACK_WEBHOOK_URL>"  # Replace with your actual webhook or mount from Vault secret
+
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: 'slack-warnings'
+      routes:
+        - matchers:
+            - severity="critical"
+          receiver: 'slack-critical'
+
+    receivers:
+    - name: 'slack-warnings'
+      slack_configs:
+      - channel: '#alerts-warning'
+        send_resolved: true
+        title: '[WARNING] {{ .GroupLabels.alertname }}'
+
+    - name: 'slack-critical'
+      slack_configs:
+      - channel: '#alerts-critical'
+        send_resolved: true
+        title: '[CRITICAL] {{ .GroupLabels.alertname }}'

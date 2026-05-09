@@ -1,0 +1,18 @@
+# WHY THIS EXISTS:
+# Static resource limits go stale. VPA recommendation mode gives you
+# data-driven right-sizing without the risk of VPA changing limits in prod.
+# You set limits once, and six months later the app has grown 3x and pods
+# are throttled. VPA tells you exactly what limits to set.
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: result-vpa
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: result
+  updatePolicy:
+    updateMode: "Off"

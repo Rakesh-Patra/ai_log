@@ -1,0 +1,55 @@
+# ════════════════════════════════════════════════════════════
+# .checkov.yaml — Checkov configuration
+# Documents every skipped check with a justification.
+# Run: checkov -d . --config-file .checkov.yaml
+# ════════════════════════════════════════════════════════════
+
+directory:
+  - .
+
+framework:
+  - terraform
+
+output:
+  - cli
+
+# Checks to skip WITH documented justification
+# Never skip without a reason — this file is code-reviewed.
+skip-check:
+  # CKV_AWS_144: Cross-region S3 replication
+  # Justification: Dev environment — cross-region replication is
+  # not required. Enable in prod via separate tfvars.
+  - CKV_AWS_144
+
+  # CKV_AWS_39: EKS public endpoint
+  # Justification: kind cluster runs locally; this check targets
+  # managed EKS clusters. Not applicable here.
+  - CKV_AWS_39
+
+  # CKV_AWS_58: EKS secrets encryption
+  # Justification: Same — kind cluster, not managed EKS.
+  - CKV_AWS_58
+
+  # CKV2_AWS_62: S3 event notifications
+  # Justification: No event-driven pipeline required for artifacts
+  # bucket in this environment.
+  - CKV2_AWS_62
+
+  # KMS and Lifecycle policies for S3 / DynamoDB
+  # Justification: Dev/Demo environment. KMS CMK encryption and S3 lifecycle/versioning
+  # add unnecessary cost/complexity for local demonstration purposes.
+  - CKV_AWS_19
+  - CKV_AWS_145
+  - CKV_AWS_21
+  - CKV2_AWS_61
+  - CKV_AWS_119
+
+# Soft-fail: report but don't exit non-zero (for informational checks)
+soft-fail-on:
+  - CKV_AWS_144
+  - CKV2_AWS_62
+  - CKV_AWS_19
+  - CKV_AWS_145
+  - CKV_AWS_21
+  - CKV2_AWS_61
+  - CKV_AWS_119

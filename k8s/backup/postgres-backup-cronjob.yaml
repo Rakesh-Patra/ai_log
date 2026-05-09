@@ -1,0 +1,65 @@
+# WHY THIS EXISTS:
+# In 2017, GitLab accidentally deleted their primary database. They had backups,
+# but the restore process had never been tested — it failed. They lost 6 hours of
+# data. Rule: a backup you haven't restored is not a backup. Every backup CronJob
+# must include a restore test job.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: default
+spec:
+  schedule: "0 2 * * *" # 02:00 UTC daily
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: pg-backup
+            image: postgres:15-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache aws-cli && \
+              pg_dump -h db -U $POSTGRES_USER $POSTGRES_DB | gzip > /tmp/backup.sql.gz && \
+              aws s3 cp /tmp/backup.sql.gz s3://$BACKUP_BUCKET/postgres/$(date +%Y%m%d-%H%M).sql.gz
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: "postgres"
+            - name: BACKUP_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: BUCKET_NAME
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 200m
+                memory: 128Mi
+          restartPolicy: OnFailure

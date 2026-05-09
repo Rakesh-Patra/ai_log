@@ -1,0 +1,36 @@
+---
+# ════════════════════════════════════════════════════════════
+# setup-k3s.yaml — Install K3s (idempotent)
+# WHY K3s not EKS: K3s = $0/month, EKS = $75/month minimum.
+# ════════════════════════════════════════════════════════════
+
+- name: "Install and configure K3s"
+  hosts: k3s
+  become: true
+  vars:
+    k3s_version: "v1.29.4+k3s1"
+    kubectl_user: ubuntu
+
+  roles:
+    - common
+    - k3s
+
+  post_tasks:
+    - name: "Verify K3s is running"
+      ansible.builtin.command: kubectl get nodes
+      become_user: "{{ kubectl_user }}"
+      register: nodes_output
+      changed_when: false
+
+    - name: "Show cluster status"
+      ansible.builtin.debug:
+        msg: "{{ nodes_output.stdout_lines }}"
+
+    - name: "Install Helm"
+      ansible.builtin.shell: |
+        if ! command -v helm &>/dev/null; then
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        fi
+      args:
+        creates: /usr/local/bin/helm
+      changed_when: false

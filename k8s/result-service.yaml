@@ -4,6 +4,8 @@ metadata:
   labels:
     app: result
   name: result
+  annotations:
+    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
 spec:
   type: ClusterIP
   ports:

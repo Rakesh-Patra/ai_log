@@ -1,0 +1,24 @@
+# WHY THIS EXISTS:
+# Without owner/project/environment tags on K8s resources,
+# you cannot break down Grafana costs or AWS Cost Explorer by team.
+# Mandatory cost tags take 20 minutes to enforce and save days of cost investigation.
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-cost-labels
+spec:
+  validationFailureAction: enforce
+  rules:
+    - name: require-labels
+      match:
+        resources:
+          kinds: [Deployment, StatefulSet, CronJob]
+      validate:
+        message: "Missing required cost labels: app, owner, environment"
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+              owner: "?*"
+              environment: "?*"

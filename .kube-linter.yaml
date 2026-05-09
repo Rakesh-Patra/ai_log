@@ -1,0 +1,14 @@
+checks:
+  doNotAutoAddDefaults: true
+  addAllBuiltIn: false
+  include:
+    - no-secret-in-env
+    - required-label
+    - run-as-non-root
+    - no-privilege-escalation
+    - resource-request-limits
+    - liveness-probe
+    - readiness-probe
+    - no-latest-image
+  exclude:
+    - no-readiness-probe

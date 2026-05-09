@@ -1,0 +1,63 @@
+# WHY THIS EXISTS:
+# Untested backups are not backups (GitLab 2017 postmortem lesson).
+# A backup that cannot be restored is completely useless. This CronJob verifies
+# data integrity automatically by attempting a full restore into a temporary database.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-restore-test
+  namespace: default
+spec:
+  schedule: "0 3 * * 0" # Weekly on Sunday at 03:00 UTC
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: pg-restore-test
+            image: postgres:15-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache aws-cli
+              LATEST_BACKUP=$(aws s3 ls s3://$BACKUP_BUCKET/postgres/ | sort | tail -n 1 | awk '{print $4}')
+              aws s3 cp s3://$BACKUP_BUCKET/postgres/$LATEST_BACKUP /tmp/latest.sql.gz
+              # Simulate restore against a test database
+              createdb -h db -U $POSTGRES_USER restore_test_db || true
+              zcat /tmp/latest.sql.gz | psql -h db -U $POSTGRES_USER -d restore_test_db
+              ROW_COUNT=$(psql -h db -U $POSTGRES_USER -d restore_test_db -t -c "SELECT count(*) FROM votes;")
+              if [ "$ROW_COUNT" -eq 0 ]; then
+                echo "Restore validation failed: 0 rows in votes table"
+                exit 1
+              fi
+              echo "Restore test passed. Rows: $ROW_COUNT"
+              dropdb -h db -U $POSTGRES_USER restore_test_db
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_PASSWORD
+            - name: BACKUP_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: BUCKET_NAME
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+          restartPolicy: Never

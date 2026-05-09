@@ -1,45 +1,65 @@
 version: 2
 updates:
-  # ── GitHub Actions (CI/CD workflows) ─────────────────────────
+  # ── GitHub Actions (CI/CD workflows) ─────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5  # Prevents PR explosion (was causing 15+ open PRs)
     labels:
       - "dependencies"
-      - "security"
+      - "ci"
+    groups:
+      # WHY groups: 1 PR for related bumps, not 15 separate PRs
+      docker-build-actions:
+        patterns: ["docker/*", "hadolint/*"]
+      security-scanning:
+        patterns: ["aquasecurity/*", "sigstore/*", "bridgecrewio/*", "pypa/*"]
+      github-core:
+        patterns: ["actions/*", "hashicorp/*"]
 
-  # ── Python (agent/requirements.txt) ──────────────────────────
+  # ── Python (agent/requirements.txt) ──────────────────────
   - package-ecosystem: "pip"
     directory: "/agent"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "python"
-      - "security"
     ignore:
-      # Pin major versions of LangChain ecosystem manually
       - dependency-name: "langchain*"
         update-types: ["version-update:semver-major"]
       - dependency-name: "langgraph"
         update-types: ["version-update:semver-major"]
 
-  # ── Node.js (result service) ─────────────────────────────────
+  # ── Python (vote service) ────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/vote"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "python"
+
+  # ── Node.js (result service) ─────────────────────────────
   - package-ecosystem: "npm"
     directory: "/result"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "nodejs"
-      - "security"
 
-  # ── Docker images in Compose files ──────────────────────────
+  # ── Docker images in Compose files ──────────────────────
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "docker"

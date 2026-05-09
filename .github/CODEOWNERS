@@ -3,28 +3,29 @@
 #
 # Format: <path pattern>  @<github-username-or-team>
 # Last matching rule wins.
-# ════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════
 
-# ── Default: every change needs at least 1 review ────────────
+# ── Default: every change needs at least 1 review ────────
 *                           @Rakesh-Patra
 
-# ── CI/CD & Security Workflows ───────────────────────────────
+# ── CI/CD & Security Workflows ───────────────────────────
 /.github/                   @Rakesh-Patra
 /.github/workflows/         @Rakesh-Patra
 
-# ── Infrastructure (Terraform, K8s manifests) ────────────────
+# ── Infrastructure (Terraform, Ansible, K8s manifests) ───
+/terraform/                 @Rakesh-Patra
+/ansible/                   @Rakesh-Patra
 /k8s/                       @Rakesh-Patra
-/agent/terraform/           @Rakesh-Patra
 
-# ── Secrets & Auth configuration ─────────────────────────────
+# ── Secrets & Auth configuration ─────────────────────────
 /.gitignore                 @Rakesh-Patra
 /.pre-commit-config.yaml    @Rakesh-Patra
 /.gitleaks.toml             @Rakesh-Patra
-/agent/.env.example         @Rakesh-Patra
+/.env.example               @Rakesh-Patra
 
-# ── AI Agent core logic ───────────────────────────────────────
+# ── AI Agent core logic ──────────────────────────────────
 /agent/app/core/            @Rakesh-Patra
 /agent/mcp_server.py        @Rakesh-Patra
 
-# ── Docker build files ────────────────────────────────────────
+# ── Docker build files ───────────────────────────────────
 **/Dockerfile               @Rakesh-Patra

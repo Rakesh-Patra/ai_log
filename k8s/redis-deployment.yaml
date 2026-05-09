@@ -31,11 +31,23 @@ spec:
           name: redis
         resources:
           requests:
-            cpu: 100m
+            cpu: 50m
             memory: 64Mi
           limits:
-            cpu: 500m
-            memory: 128Mi
+            cpu: 200m
+            memory: 256Mi
+        # Redis uses tcpSocket probe (not HTTP)
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 10
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true

@@ -40,7 +40,7 @@ jobs:
 
       # ── Security: Lint Dockerfile before building ──────────────
       - name: "\U0001F4CB Lint Dockerfile (Hadolint)"
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: vote/Dockerfile
           failure-threshold: warning

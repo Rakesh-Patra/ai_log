@@ -71,7 +71,7 @@ jobs:
 
       # ── 4. Lint Dockerfile ───────────────────────────────
       - name: "📋 Lint Dockerfile (Hadolint)"
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: ${{ inputs.dockerfile }}
           failure-threshold: warning

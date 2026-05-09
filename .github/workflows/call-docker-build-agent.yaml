@@ -40,7 +40,7 @@ jobs:
 
       # ── Security: Lint Dockerfile ───────────────────────────────
       - name: "📋 Lint Dockerfile (Hadolint)"
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: agent/Dockerfile
           failure-threshold: warning

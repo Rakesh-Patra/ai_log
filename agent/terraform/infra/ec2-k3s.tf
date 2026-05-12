@@ -85,7 +85,7 @@ resource "aws_instance" "k3s" {
 
   root_block_device {
     volume_size = 20 # 20 GB Storage
-    volume_type = "gp2"
+    volume_type = "gp3"
   }
 
   user_data = <<-EOF
